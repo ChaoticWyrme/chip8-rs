@@ -54,7 +54,7 @@ pub enum MathOperation {
     // bitshifts Source to the left by one
     // Source <<= 1
     BitshiftLeft,
-    UnknownOperation(OpCode)
+    UnknownOperation(OpCode),
 }
 
 impl From<OpCode> for MathOperation {
@@ -85,7 +85,6 @@ impl From<OpCode> for MathOperation {
 /// PC: Program Counter
 /// I: 16-bit register for memory addresses (pointer)
 pub enum Instruction {
-
     /// 0x0NNN
     /// Calls a machine code routine at address NNN,
     /// Probably not neccesary
@@ -102,11 +101,15 @@ pub enum Instruction {
     /// 0x1NNN
     /// Jump to adress NNN
     /// PC = NNN
-    Goto { address: Address },
-    
+    Goto {
+        address: Address,
+    },
+
     /// 0x2NNN
     /// Call subroutine at NNN
-    Call { address: Address },
+    Call {
+        address: Address,
+    },
 
     /// 0x3XNN
     /// Skip next instruction if VX == NN
@@ -119,7 +122,7 @@ pub enum Instruction {
     /// Skip next instruction if VX != NN
     RegisterNotEqualToConst {
         register: Register,
-        value: u8
+        value: u8,
     },
 
     /// 0x5XY0
@@ -130,14 +133,14 @@ pub enum Instruction {
     /// Set VX to NN
     SetRegister {
         register: Register,
-        value: u8
+        value: u8,
     },
 
     /// 0x7XNN
     /// Vx += NN (no carry flag)
     AddConst {
         register: Register,
-        value: u8
+        value: u8,
     },
 
     /// 0x8XYO
@@ -145,7 +148,7 @@ pub enum Instruction {
     Math {
         source: Register,
         destination: Register,
-        operation: MathOperation
+        operation: MathOperation,
     },
 
     /// 0x9XY0
@@ -159,13 +162,15 @@ pub enum Instruction {
     /// 0xBNNN
     /// PC = V0 + NNN
     /// Jump to address NNN + V0
-    JumpRelative { offset: u16 },
+    JumpRelative {
+        offset: u16,
+    },
 
     /// 0xCXNN
     /// Vx = rand()&NN
     Random {
         register: Register,
-        mask: u8
+        mask: u8,
     },
 
     /// 0xDXYN
@@ -177,7 +182,7 @@ pub enum Instruction {
     /// is drawn and to 0 otherwise. This allows for some collision detection.
     Draw {
         position: (Register, Register),
-        height: u8
+        height: u8,
     },
 
     /// 0xEX9E
@@ -210,7 +215,7 @@ pub enum Instruction {
     AddToPointer(Register),
 
     /// 0xFX29
-    /// Set I to the location of the sprite for the character in Vx. 
+    /// Set I to the location of the sprite for the character in Vx.
     /// Characters 0-F are represented by a 4x5 font
     SetPointerToLetter(Register),
 
@@ -222,22 +227,22 @@ pub enum Instruction {
     SplitNumber(Register),
 
     /// 0xFX55
-    /// Store V0 to Vx (inclusive) in memory starting at address I. 
+    /// Store V0 to Vx (inclusive) in memory starting at address I.
     /// Doesn't modify I
     RegisterDump(Register),
 
     /// 0xFX65
-    /// Fill V0 to Vx (inclusive) from memory starting at address I. 
+    /// Fill V0 to Vx (inclusive) from memory starting at address I.
     /// Doesn't modify I
     RegisterLoad(Register),
 
     /// TODO: Change out for using TryFrom instead of this crutch
-    UndefinedOperation(u16)
+    UndefinedOperation(u16),
 }
 
 impl From<u16> for Instruction {
     fn from(instruction: u16) -> Self {
-        // zero out all bits after the first 2
+        // zero out all bits after the first 4
         // and cast to u8, so it's easy to compare
         let category_num: u8 = ((instruction & 0xF000) >> 12) as u8;
         match category_num {
@@ -249,32 +254,32 @@ impl From<u16> for Instruction {
                 } else {
                     Instruction::MachineCodeCall(0x0FFF & instruction)
                 }
-            },
+            }
             0x1 => Instruction::Goto {
-                address: 0x0FFF & instruction
+                address: 0x0FFF & instruction,
             },
             0x2 => Instruction::Call {
-                address: 0x0FFF & instruction
+                address: 0x0FFF & instruction,
             },
             0x3 => Instruction::RegisterEqualToConst {
-                register: get_bytes!(instruction, 1) as Register,//((0x0F00 & instruction) >> 8) as Register,
-                value: (0x00FF & instruction) as u8
+                register: get_bytes!(instruction, 1) as Register, //((0x0F00 & instruction) >> 8) as Register,
+                value: (0x00FF & instruction) as u8,
             },
             0x4 => Instruction::RegisterNotEqualToConst {
-                register:  get_bytes!(instruction, 1) as Register,
-                value: get_bytes!(instruction, 2, 2) as u8
+                register: get_bytes!(instruction, 1) as Register,
+                value: get_bytes!(instruction, 2, 2) as u8,
             },
             0x5 => Instruction::RegistersEqual(
                 get_bytes!(instruction, 1) as Register,
-                get_bytes!(instruction, 2) as Register
+                get_bytes!(instruction, 2) as Register,
             ),
             0x6 => Instruction::SetRegister {
                 register: get_bytes!(instruction, 1) as Register,
-                value: (instruction & 0x00FF) as u8
+                value: (instruction & 0x00FF) as u8,
             },
             0x7 => Instruction::AddConst {
                 register: get_bytes!(instruction, 1) as Register,
-                value: (instruction & 0x00FF) as u8
+                value: (instruction & 0x00FF) as u8,
             },
             0x8 => {
                 let source = get_bytes!(instruction, 1) as Register;
@@ -284,7 +289,7 @@ impl From<u16> for Instruction {
                     destination,
                     operation: instruction.into(),
                 }
-            },
+            }
             0x9 => Instruction::RegistersNotEqual(
                 get_bytes!(instruction, 1) as Register,
                 get_bytes!(instruction, 2) as Register,
@@ -300,7 +305,7 @@ impl From<u16> for Instruction {
             0xD => Instruction::Draw {
                 position: (
                     get_bytes!(instruction, 1) as Register,
-                    get_bytes!(instruction, 2) as Register
+                    get_bytes!(instruction, 2) as Register,
                 ),
                 height: (instruction & 0x000F) as u8,
             },
@@ -314,7 +319,7 @@ impl From<u16> for Instruction {
                 } else {
                     Instruction::UndefinedOperation(instruction)
                 }
-            },
+            }
             0xF => {
                 let sub_instruction = (0x00FF & instruction) as u8;
                 let register = get_bytes!(instruction, 1) as Register;
@@ -328,7 +333,7 @@ impl From<u16> for Instruction {
                     0x33 => Instruction::SplitNumber(register),
                     0x55 => Instruction::RegisterDump(register),
                     0x65 => Instruction::RegisterLoad(register),
-                    _ => Instruction::UndefinedOperation(instruction)
+                    _ => Instruction::UndefinedOperation(instruction),
                 }
             }
             _ => Instruction::UndefinedOperation(instruction),

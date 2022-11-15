@@ -173,7 +173,7 @@ impl Chip8 {
                     position.0,
                     position.1,
                     height,
-                    &self.memory[self.pointer as usize..self.memory.len()],
+                    &self.memory[self.pointer as usize..(8 * height) as usize],
                 );
             }
             Instruction::KeyPressed(register) => {

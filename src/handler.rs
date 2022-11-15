@@ -7,4 +7,3 @@ struct EventHandler {
 impl EventHandler {
     fn set_callback(&mut self, cb: impl FnMut()) {}
 }
-
