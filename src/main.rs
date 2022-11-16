@@ -1,6 +1,5 @@
-use chip8emu::*;
+use chip8_core::*;
 use std::fs;
-use std::io::prelude::*;
 use std::path::PathBuf;
 
 fn main() {
