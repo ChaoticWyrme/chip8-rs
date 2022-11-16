@@ -214,7 +214,10 @@ pub enum Instruction {
     /// TODO: Change out for using TryFrom instead of this crutch
     UndefinedOperation(u16),
 }
-/// Shifts the value according to this table
+
+/// Takes a value and returns a range of bytes from that value
+///
+/// For reference, it shifts the value according to this table
 /// | Location | Size | Shift amount |
 /// |----------|------|--------------|
 /// | 0        | 1    | 3            |
@@ -227,45 +230,73 @@ pub enum Instruction {
 /// | 2        | 1    | 1            |
 /// | 2        | 2    | 0            |
 /// | 3        | 1    | 0            |
-
-fn get_nibbles(value: u16, location: u8, size: u8) -> u16 {
+///
+/// # Panics
+/// This function panics if given an invalid set of arguments.
+/// Specifically, if the size is zero, or if the sum of the size and location is greater than 4,
+/// since those arguments would produce invalid values.
+/// Generally, the location and size arguments should be set statically at the call site,
+/// so that you don't accidentally pass in invalid arguments.
+///
+/// # Examples
+///
+/// We'll use the value `0xDEAF` for the following examples:
+/// ```
+/// let bytes = 0xDEAF;
+/// ```
+///
+/// - Get the last 3 nibbles of the value
+/// ```
+/// # let bytes = 0xDEAF;
+///
+/// println!("{:X}", get_nibbles(bytes, 1, 3));
+/// ```
+///
+/// - Get the first nibble of the value
+/// ```
+/// # let bytes = 0xDEAF;
+///
+/// println!("{:X}", get_nibble(byte, 0));
+/// ```
+pub fn get_nibbles(value: u16, location: u8, size: u8) -> u16 {
     let mask = match size {
         1 => 0xF,
         2 => 0xFF,
         3 => 0xFFF,
-        _ => panic!("Invalid size"),
+        4 => return value,
+        0 => panic!("Can't get a value zero nibbles long"),
+        _ => panic!("Can't get a value more than 4 nibbles long from a u16"),
     };
 
-    /*
-    println!(
-        "Extracting {} nibble(s) {} nibbles from the left of value {:X}",
-        size, location, value
-    );
-    println!("Mask: {:X}", mask);
-    println!(
-        "Shift amount: {} nibbles, {} bits",
-        4 - location - size,
-        (4 - location - size) * 4
-    );
-    */
+    if location > 3 {
+        panic!("Can't get nibbles past the end of the value");
+    }
 
-    // we only want size nibbles starting location nibbles from the left, so we shift the value over (location - size) nibbles to the right
+    if (location + size) > 4 {
+        panic!(
+            "A value {} nibbles long at an offset of {} goes past the end of the value",
+            size, location
+        )
+    }
+
+    // we only want $size nibbles starting $location nibbles from the left, so we shift the value over (location - size) nibbles to the right
     let shifted_value = value >> ((4 - location - size) * 4);
 
     // AND the shifted value with the mask to remove the remaining bits on the left and return the extracted nibbles
     shifted_value & mask
 }
 
-fn get_nibble(value: u16, location: u8) -> u8 {
+/// Get a given nibble (hexidecimal digit) from the given value
+///
+/// This is an alias for calling [`get_nibbles`] with a size of one.
+pub fn get_nibble(value: u16, location: u8) -> u8 {
     get_nibbles(value, location, 1) as u8
 }
 
 impl From<u16> for Instruction {
     fn from(instruction: u16) -> Self {
-        // zero out all bits after the first 4
-        // and cast to u8, so it's easy to compare
-        let category_num: u8 = ((instruction & 0xF000) >> 12) as u8;
-        let test_category_num: u8 = get_nibble(instruction, 0);
+        // get the first nibble of the opcode, which is the category of the instruction
+        let category_num = get_nibble(instruction, 0);
         match category_num {
             0x0 => {
                 if instruction == 0x00E0 {
@@ -491,5 +522,32 @@ mod tests {
             BitshiftRight,
             "Decode bitwise right shift on register 0x3, source is ignored",
         );
+    }
+
+    /// assert_eq! with custom message to compare values in binary, for testing bit shifting functions
+    macro_rules! binary_assert_eq {
+        ($a:expr, $b:expr) => {
+            assert_eq!($a, $b, "Expected: {:b}\nFound:     {:b}", $a, $b);
+        };
+    }
+
+    #[test]
+    fn test_get_nibble() {
+        let bytes = 0xABCD;
+        binary_assert_eq!(get_nibble(bytes, 0), 0xA);
+        binary_assert_eq!(get_nibble(bytes, 1), 0xB);
+        binary_assert_eq!(get_nibble(bytes, 2), 0xC);
+        binary_assert_eq!(get_nibble(bytes, 3), 0xD);
+    }
+
+    /// Test get_nibbles function, ignoring potential values
+    #[test]
+    fn test_get_nibbles() {
+        let bytes = 0xABCD;
+        binary_assert_eq!(get_nibbles(bytes, 0, 2), 0xAB);
+        binary_assert_eq!(get_nibbles(bytes, 0, 3), 0xABC);
+        binary_assert_eq!(get_nibbles(bytes, 1, 2), 0xBC);
+        binary_assert_eq!(get_nibbles(bytes, 1, 3), 0xBCD);
+        binary_assert_eq!(get_nibbles(bytes, 2, 2), 0xCD);
     }
 }
