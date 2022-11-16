@@ -4,33 +4,7 @@ type OpCode = u16;
 
 // TODO: Change From implementations into TryFrom, since they have failure conditions
 
-/// get_bytes(value, start, length)
-/// gets length bytes starting "start" bytes from the left
-macro_rules! get_bytes {
-    ($value:ident, $location:literal, 1) => {
-        (0xF000 >> $location) & $value
-    };
-    ($value:ident, $location:literal, 2) => {
-        (0xFF00 >> $location) & $value
-    };
-    ($value:ident, $location:literal, 3) => {
-        (0xFFF0 >> $location) & $value
-    };
-    ($value:ident, 1, $size:literal) => {
-        get_bytes!($value, 4, $size)
-    };
-    ($value:ident, 2, $size:literal <= 2) => {
-        get_bytes!($value, 8, $size)
-    };
-    ($value:ident, 3, 1) => {
-        get_bytes!($value, 12, 1)
-    };
-    ($value:ident, $location:literal) => {
-        get_bytes!($value, $location, 1)
-    };
-}
-
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MathOperation {
     // Dest = Source
     Assign,
@@ -84,6 +58,7 @@ impl From<OpCode> for MathOperation {
 /// X and Y: 4-bit register identifier
 /// PC: Program Counter
 /// I: 16-bit register for memory addresses (pointer)
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Instruction {
     /// 0x0NNN
     /// Calls a machine code routine at address NNN,
@@ -239,12 +214,58 @@ pub enum Instruction {
     /// TODO: Change out for using TryFrom instead of this crutch
     UndefinedOperation(u16),
 }
+/// Shifts the value according to this table
+/// | Location | Size | Shift amount |
+/// |----------|------|--------------|
+/// | 0        | 1    | 3            |
+/// | 0        | 2    | 2            |
+/// | 0        | 3    | 1            |
+/// | 0        | 4    | 0            |
+/// | 1        | 1    | 2            |
+/// | 1        | 2    | 1            |
+/// | 1        | 3    | 0            |
+/// | 2        | 1    | 1            |
+/// | 2        | 2    | 0            |
+/// | 3        | 1    | 0            |
+
+fn get_nibbles(value: u16, location: u8, size: u8) -> u16 {
+    let mask = match size {
+        1 => 0xF,
+        2 => 0xFF,
+        3 => 0xFFF,
+        _ => panic!("Invalid size"),
+    };
+
+    /*
+    println!(
+        "Extracting {} nibble(s) {} nibbles from the left of value {:X}",
+        size, location, value
+    );
+    println!("Mask: {:X}", mask);
+    println!(
+        "Shift amount: {} nibbles, {} bits",
+        4 - location - size,
+        (4 - location - size) * 4
+    );
+    */
+
+    // we only want size nibbles starting location nibbles from the left, so we shift the value over (location - size) nibbles to the right
+    let shifted_value = value >> ((4 - location - size) * 4);
+
+    // AND the shifted value with the mask to remove the remaining bits on the left and return the extracted nibbles
+    shifted_value & mask
+}
+
+fn get_nibble(value: u16, location: u8) -> u8 {
+    get_nibbles(value, location, 1) as u8
+}
 
 impl From<u16> for Instruction {
     fn from(instruction: u16) -> Self {
         // zero out all bits after the first 4
         // and cast to u8, so it's easy to compare
         let category_num: u8 = ((instruction & 0xF000) >> 12) as u8;
+        let test_category_num: u8 = get_nibble(instruction, 0);
         match category_num {
             0x0 => {
                 if instruction == 0x00E0 {
@@ -262,28 +283,33 @@ impl From<u16> for Instruction {
                 address: 0x0FFF & instruction,
             },
             0x3 => Instruction::RegisterEqualToConst {
-                register: get_bytes!(instruction, 1) as Register, //((0x0F00 & instruction) >> 8) as Register,
+                register: get_nibble(instruction, 1) as Register, //((0x0F00 & instruction) >> 8) as Register,
                 value: (0x00FF & instruction) as u8,
             },
             0x4 => Instruction::RegisterNotEqualToConst {
-                register: get_bytes!(instruction, 1) as Register,
-                value: get_bytes!(instruction, 2, 2) as u8,
+                register: get_nibble(instruction, 1) as Register,
+                value: get_nibbles(instruction, 2, 2) as u8,
             },
             0x5 => Instruction::RegistersEqual(
-                get_bytes!(instruction, 1) as Register,
-                get_bytes!(instruction, 2) as Register,
+                get_nibble(instruction, 1) as Register,
+                get_nibble(instruction, 2) as Register,
             ),
             0x6 => Instruction::SetRegister {
-                register: get_bytes!(instruction, 1) as Register,
+                register: get_nibble(instruction, 1) as Register,
                 value: (instruction & 0x00FF) as u8,
             },
             0x7 => Instruction::AddConst {
-                register: get_bytes!(instruction, 1) as Register,
+                register: get_nibble(instruction, 1) as Register,
                 value: (instruction & 0x00FF) as u8,
             },
             0x8 => {
-                let source = get_bytes!(instruction, 1) as Register;
-                let destination = get_bytes!(instruction, 2) as Register;
+                // Math instruction is 0x8XYO where
+                // X = register to assign result to / operate on
+                // Y = Register to get info from (ie multiply X by)
+                // O = Math operation
+                // so we call X destination and Y source
+                let source = get_nibble(instruction, 2) as Register;
+                let destination = get_nibble(instruction, 1) as Register;
                 Instruction::Math {
                     source,
                     destination,
@@ -291,27 +317,27 @@ impl From<u16> for Instruction {
                 }
             }
             0x9 => Instruction::RegistersNotEqual(
-                get_bytes!(instruction, 1) as Register,
-                get_bytes!(instruction, 2) as Register,
+                get_nibble(instruction, 1) as Register,
+                get_nibble(instruction, 2) as Register,
             ),
-            0xA => Instruction::SetPointer(get_bytes!(instruction, 1, 3)),
+            0xA => Instruction::SetPointer(get_nibbles(instruction, 1, 3)),
             0xB => Instruction::JumpRelative {
                 offset: instruction & 0x0FFF,
             },
             0xC => Instruction::Random {
-                register: get_bytes!(instruction, 1) as Register,
+                register: get_nibble(instruction, 1) as Register,
                 mask: (instruction & 0x00FF) as u8,
             },
             0xD => Instruction::Draw {
                 position: (
-                    get_bytes!(instruction, 1) as Register,
-                    get_bytes!(instruction, 2) as Register,
+                    get_nibble(instruction, 1) as Register,
+                    get_nibble(instruction, 2) as Register,
                 ),
                 height: (instruction & 0x000F) as u8,
             },
             0xE => {
                 let sub_instruction = (0x00FF & instruction) as u8;
-                let register = get_bytes!(instruction, 1) as Register;
+                let register = get_nibble(instruction, 1) as Register;
                 if sub_instruction == 0x9E {
                     Instruction::KeyPressed(register)
                 } else if sub_instruction == 0xA1 {
@@ -322,7 +348,7 @@ impl From<u16> for Instruction {
             }
             0xF => {
                 let sub_instruction = (0x00FF & instruction) as u8;
-                let register = get_bytes!(instruction, 1) as Register;
+                let register = get_nibble(instruction, 1) as Register;
                 match sub_instruction {
                     0x07 => Instruction::GetDelayTimer(register),
                     0x0A => Instruction::WaitKeyPress(register),
@@ -338,5 +364,132 @@ impl From<u16> for Instruction {
             }
             _ => Instruction::UndefinedOperation(instruction),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Test decoding the two instructions that don't have any arguments
+    #[test]
+    fn decode_no_arg_instructions() {
+        assert_eq!(Instruction::from(0x00E0), Instruction::ClearDisplay);
+
+        assert_eq!(Instruction::from(0x00EE), Instruction::Return);
+    }
+
+    #[test]
+    fn decode_flow_instructions() {
+        assert_eq!(
+            Instruction::from(0x1321),
+            Instruction::Goto { address: 0x321 },
+            "Decode goto instruction with the address 0x321"
+        );
+
+        assert_eq!(
+            Instruction::from(0x2321),
+            Instruction::Call { address: 0x321 },
+            "Decode call instruction with the address 0x321"
+        );
+
+        assert_eq!(
+            Instruction::from(0xB321),
+            Instruction::JumpRelative { offset: 0x321 },
+            "Decode jump relative instruction with the offset 0x321"
+        );
+    }
+
+    #[test]
+    fn decode_bcd() {
+        assert_eq!(
+            Instruction::from(0xF433),
+            Instruction::SplitNumber(4),
+            "Decode BCD/split number instruction with register 4"
+        );
+    }
+
+    /// Single digit hex for each value
+    fn test_math_op(
+        operation: u8,
+        source: u8,
+        destination: u8,
+        variant: MathOperation,
+        desc: &'static str,
+    ) {
+        let opcode =
+            0x8000 + (destination as u16 * 0x100) + (source as u16 * 0x10) + operation as u16;
+
+        assert_eq!(
+            Instruction::from(opcode),
+            Instruction::Math {
+                source: source,
+                destination,
+                operation: variant
+            },
+            "{}",
+            desc
+        );
+    }
+
+    #[test]
+    fn decode_math_instructions() {
+        use MathOperation::*;
+
+        test_math_op(
+            0x0,
+            0x2,
+            0xA,
+            Assign,
+            "Decode assign math instruction with register 2 to register A",
+        );
+
+        test_math_op(
+            0x1,
+            0x0,
+            0x8,
+            BitwiseOr,
+            "Decode bitwise OR operation from register 0 onto register 8",
+        );
+
+        test_math_op(
+            0x2,
+            0xA,
+            0x3,
+            BitwiseAnd,
+            "Decode bitwise AND operation from register A onto register 2",
+        );
+
+        test_math_op(
+            0x3,
+            0xD,
+            0x6,
+            BitwiseXor,
+            "Decode bitwise XOR operation from register D onto register 6",
+        );
+
+        test_math_op(
+            0x4,
+            0xF,
+            0xE,
+            Add,
+            "Decode add instruction from register F onto register E",
+        );
+
+        test_math_op(
+            0x5,
+            0x2,
+            0x5,
+            Subtract,
+            "Decode subtract instruction from register 2 onto register 5",
+        );
+
+        test_math_op(
+            0x6,
+            0x0,
+            0x3,
+            BitshiftRight,
+            "Decode bitwise right shift on register 0x3, source is ignored",
+        );
     }
 }
