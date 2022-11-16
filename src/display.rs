@@ -5,6 +5,12 @@ pub struct Display {
 }
 
 impl Display {
+    // Could definitely use a more efficient bitpacking algorithm here.
+    // Make collision detection easy
+    // Just AND slice of pixels and slice of sprite and test if greater than 1
+    // (all 1s are where old frame already on and new sprite is flipping)
+    // Then just XOR the two slices for the new values that will invert any bits where the sprite is one
+    // We can use bitvec, with bitfields
     pub fn new(width: usize, height: usize) -> Self {
         debug_assert_eq!(width % 8, 0, "Width must be a multiple of 8");
         Display {

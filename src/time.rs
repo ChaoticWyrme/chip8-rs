@@ -9,15 +9,21 @@ pub struct Timers {
     rate: usize,
 }
 
-impl Timers {
-    pub fn new() -> Self {
+impl Default for Timers {
+    fn default() -> Self {
         Timers {
             delay: 0,
             sound: 0,
             prev_tick: Instant::now(),
-            remainder: Duration::from_secs(0),
+            remainder: Duration::default(),
             rate: 60,
         }
+    }
+}
+
+impl Timers {
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn is_sound_on(&self) -> bool {
@@ -55,18 +61,6 @@ impl Timers {
         }
         if self.sound > 0 {
             self.sound -= 1;
-        }
-    }
-}
-
-impl Default for Timers {
-    fn default() -> Self {
-        Timers {
-            delay: 0,
-            sound: 0,
-            prev_tick: Instant::now(),
-            remainder: Duration::default(),
-            rate: 60,
         }
     }
 }

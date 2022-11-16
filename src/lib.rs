@@ -1,4 +1,5 @@
 pub mod display;
+pub mod font;
 pub mod instruction;
 pub mod keypad;
 pub mod time;
@@ -24,11 +25,20 @@ pub enum DecodingError {
     InvalidState { operation: String, reason: String },
 }
 
+/// The VM state
 pub struct Chip8 {
     //rom: [u8; 0x1000],
+    /// Programs are loaded starting at 200
+    /// 0x000 to 0x1FF are reserved for CHIP-8 interpreter
+    /// Last 352 bytes are reserved for "variables and display refresh"
+    /// Thus, programs have 0x200 to 0xE8F
     pub memory: [u8; 0x1000],
+    // 16 valid registers, V0 to VF
     pub registers: [u8; 16],
+    /// The P register
     pub pointer: u16,
+    /// The program counter, should start at 200 by default.
+    /// Increment by 2 per instruction, as instructions are 2 bytes long.
     pub pc: u16,
     pub stack: Vec<u16>,
     pub timers: Timers,
@@ -42,9 +52,9 @@ impl Default for Chip8 {
     fn default() -> Self {
         Self {
             memory: [0_u8; 0x1000],
-            registers: Default::default(),
-            pointer: Default::default(),
-            pc: Default::default(),
+            registers: [0_u8; 16],
+            pointer: 0,
+            pc: 200,
             stack: Default::default(),
             timers: Default::default(),
             display: Default::default(),
@@ -52,20 +62,6 @@ impl Default for Chip8 {
             running: true,
             key_wait_register: None,
         }
-    }
-}
-
-impl Display for Chip8 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "Chip8 internals:
-        ROM: Opaque,
-        Memory: Opaque,"
-        )?;
-        writeln!(f, "Registers: \n{}", self.registers_to_string())?;
-
-        Ok(())
     }
 }
 
@@ -238,11 +234,15 @@ impl Chip8 {
         Ok(())
     }
 
-    fn next_instruction(&mut self) {
+    pub fn next_instruction(&mut self) {
         self.pc += 2;
     }
 
-    fn step_instructions(&mut self, steps: u16) {
+    pub fn back_instruction(&mut self) {
+        self.pc -= 2;
+    }
+
+    pub fn step_instructions(&mut self, steps: u16) {
         self.pc += steps * 2;
     }
 
@@ -271,26 +271,26 @@ impl Chip8 {
                 self.registers[destination as usize] = source_val ^ dest_val;
             }
             Add => {
-                self.registers[destination as usize] += source_val;
+                self.registers[destination as usize] = dest_val.wrapping_add(source_val);
                 // dest_val = destination value before operation
                 // compare to see if the result of addition is smaller than the original value
                 self.set_carry(dest_val > self.registers[destination as usize]);
             }
             Subtract => {
-                self.registers[destination as usize] -= dest_val;
+                self.registers[destination as usize] = dest_val.wrapping_sub(source_val);
                 // check if operation carried
                 // dest_val = cached value from before operation
                 self.set_carry(dest_val < self.registers[destination as usize]);
             }
             BitshiftRight => {
-                self.registers[0xF] = dest_val & 0b00000001;
+                self.set_carry(dest_val & 0b00000001 != 0);
                 self.registers[destination as usize] = dest_val >> 1;
             }
             Difference => {
                 self.registers[destination as usize] = source_val - dest_val;
             }
             BitshiftLeft => {
-                self.registers[0xF] = dest_val & 0b10000000;
+                self.set_carry(dest_val & 0b10000000 != 0);
                 self.registers[destination as usize] = dest_val << 1;
             }
             UnknownOperation(opcode) => {
@@ -334,6 +334,20 @@ impl Chip8 {
     }
 }
 
+impl Display for Chip8 {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(
+            f,
+            "Chip8 internals:
+        ROM: Opaque,
+        Memory: Opaque,"
+        )?;
+        writeln!(f, "Registers: \n{}", self.registers_to_string())?;
+
+        Ok(())
+    }
+}
+
 /// A display frontend
 pub trait Frontend {
     fn render_display(screen: display::Display);
@@ -346,7 +360,11 @@ pub trait Frontend {
 struct MockFrontend;
 
 impl Frontend for MockFrontend {
-    fn render_display(screen: display::Display) {}
+    fn render_display(screen: display::Display) {
+        const OFF_CHAR: char = '░'; // U+2591: LIGHT SHADE
+        const ON_CHAR: char = '█'; // U+2588: FULL BLOCK
+                                   // alternatively: ▓ U+2593: DARK SHADE
+    }
 
     fn play_tone() {
         todo!()
@@ -362,5 +380,212 @@ impl Frontend for MockFrontend {
 
     fn wait_for_key(key: char) {
         todo!()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Should I move these tests to the integration tests?
+    // use super::*;
+
+    mod math_operations {
+        use super::super::*;
+
+        /// assert_eq! with custom message to compare values in binary, for testing bit shifting functions
+        macro_rules! binary_assert_eq {
+            ($a:expr, $b:expr) => {
+                assert_eq!($b, $a, "\nExpected: {:b}\nFound:    {:b}", $b, $a);
+            };
+        }
+
+        fn init_vm(opcode: u16) -> Chip8 {
+            let mut vm = Chip8::new();
+            // program counter starts at 0, so this'll be the first instruction
+            let opcode_bytes = opcode.to_be_bytes();
+            vm.memory[0] = opcode_bytes[0];
+            vm.memory[1] = opcode_bytes[1];
+
+            vm
+        }
+
+        #[test]
+        fn assign() {
+            let mut vm = init_vm(0x8120);
+
+            // destination register, will be set to register 2 value
+            vm.registers[1] = 4;
+            // source register
+            vm.registers[2] = 0xA;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(
+                vm.registers[1], 0xA,
+                "Value of register two not copied to register one"
+            );
+        }
+
+        #[test]
+        fn bitwise_or() {
+            let mut vm = init_vm(0x8121);
+
+            // destination register, will be OR'd with register 2
+            vm.registers[1] = 0b101;
+            vm.registers[2] = 0b110;
+            //result should = 0b111
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b111);
+        }
+
+        #[test]
+        fn bitwise_and() {
+            let mut vm = init_vm(0x8142);
+
+            // destination register, will be AND'd with register 4
+            vm.registers[1] = 0b1101;
+            vm.registers[4] = 0b0111;
+            //result should = 0b0101
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b0101);
+        }
+
+        #[test]
+        fn bitwise_xor() {
+            let mut vm = init_vm(0x8123);
+
+            // destination register, will be XOR'd with register 2
+            vm.registers[1] = 0b1101;
+            vm.registers[2] = 0b0110;
+            //result should = 0b1011
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b1011);
+        }
+
+        #[test]
+        fn add_no_carry() {
+            // test add with no carry
+            let mut vm = init_vm(0x8124);
+
+            // destination register, will be summed with register 2
+            vm.registers[1] = 34;
+            vm.registers[2] = 13;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(vm.registers[1], 34 + 13);
+            assert_eq!(vm.get_carry(), false, "Unexpected positive carry flag");
+        }
+
+        #[test]
+        fn add_carry() {
+            // test carry flag is set and the addition wraps correctly
+            let mut vm = init_vm(0x8124);
+
+            vm.registers[1] = 254;
+            vm.registers[2] = 30;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(vm.registers[1], 254_u8.wrapping_add(30), "Wrapping add");
+            assert_eq!(vm.get_carry(), true, "Unexpected non-one carry flag");
+        }
+
+        #[test]
+        fn subtract_no_carry() {
+            // test V1 -= V2 with no carry
+            let mut vm = init_vm(0x8125);
+
+            vm.registers[1] = 54;
+            vm.registers[2] = 23;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(vm.registers[1], 54 - 23);
+        }
+
+        #[test]
+        fn subtract_carry() {
+            // test V1 -= V2 with carry
+            let mut vm = init_vm(0x8125);
+
+            // destination register, will be OR'd with register 2
+            vm.registers[1] = 54;
+            vm.registers[2] = 64;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(vm.registers[1], 54_u8.wrapping_sub(64));
+            assert_eq!(vm.get_carry(), true)
+        }
+
+        #[test]
+        fn bitshift_right() {
+            // Test right bitshift: Store least signifigant bit in VF, then shift V1 to the right 1
+            let mut vm = init_vm(0x8126);
+
+            // source register is ignored
+            vm.registers[1] = 0b1011;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b101);
+            assert_eq!(vm.registers[0xF], 1, "Carrying right shift");
+
+            vm.back_instruction();
+
+            vm.registers[1] = 0b1100;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b110);
+            assert_eq!(vm.registers[0xF], 0, "Non-carrying right shift");
+        }
+
+        #[test]
+        fn bitshift_left() {
+            // Test left bitshift: Store most signifigant bit in VF, then shift V1 to the left 1
+            let mut vm = init_vm(0x812E);
+
+            // source register is ignored
+            vm.registers[1] = 0b1101_1011;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b101_10110);
+            assert_eq!(vm.registers[0xF], 1, "Carrying left shift");
+
+            vm.back_instruction();
+
+            vm.registers[1] = 0b0101_0111;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            binary_assert_eq!(vm.registers[1], 0b101_01110);
+            assert_eq!(vm.registers[0xF], 0, "Non-carrying left shift");
+        }
+
+        #[ignore]
+        #[test]
+        fn difference() {
+            // TODO: Finish this test
+            // Test V1 = V2 - V1
+            let mut vm = init_vm(0x8127);
+
+            vm.registers[1] = 2;
+            vm.registers[2] = 0b110;
+
+            vm.run_next().expect("Decoding error on test instruction");
+
+            assert_eq!(vm.registers[1], 0b111);
+        }
+
+        #[test]
+        fn unknown_operation() {}
     }
 }

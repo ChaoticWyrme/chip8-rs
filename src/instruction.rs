@@ -4,6 +4,11 @@ type OpCode = u16;
 
 // TODO: Change From implementations into TryFrom, since they have failure conditions
 
+/// An enum representing the type of a math instruction
+///
+/// We use this since the math instructions generally have the same opcode pattern:
+/// `0x8XYO`, where the 8 indicates it's a math instruction, the X and Y are arguments for the instruction,
+/// and the O is the operation. The X is usually the destination register, and the Y is the source register.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum MathOperation {
     // Dest = Source
@@ -268,16 +273,17 @@ pub fn get_nibbles(value: u16, location: u8, size: u8) -> u16 {
         _ => panic!("Can't get a value more than 4 nibbles long from a u16"),
     };
 
-    if location > 3 {
-        panic!("Can't get nibbles past the end of the value");
-    }
-
-    if (location + size) > 4 {
-        panic!(
-            "A value {} nibbles long at an offset of {} goes past the end of the value",
-            size, location
-        )
-    }
+    assert!(
+        location <= 3,
+        "Can't get nibbles past the end of the value (location: {})",
+        location
+    );
+    assert!(
+        (location + size) <= 4,
+        "A value {} nibbles long at an offset of {} goes past the end of the value",
+        size,
+        location
+    );
 
     // we only want $size nibbles starting $location nibbles from the left, so we shift the value over (location - size) nibbles to the right
     let shifted_value = value >> ((4 - location - size) * 4);
@@ -527,7 +533,7 @@ mod tests {
     /// assert_eq! with custom message to compare values in binary, for testing bit shifting functions
     macro_rules! binary_assert_eq {
         ($a:expr, $b:expr) => {
-            assert_eq!($a, $b, "Expected: {:b}\nFound:     {:b}", $a, $b);
+            assert_eq!($b, $a, "\nExpected: {:b}\nFound:    {:b}", $b, $a);
         };
     }
 
