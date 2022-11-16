@@ -247,11 +247,13 @@ pub enum Instruction {
 ///
 /// We'll use the value `0xDEAF` for the following examples:
 /// ```
+/// use chip8_core::instruction::{get_nibble, get_nibbles};
 /// let bytes = 0xDEAF;
 /// ```
 ///
 /// - Get the last 3 nibbles of the value
 /// ```
+/// # use chip8_core::instruction::{get_nibble, get_nibbles};
 /// # let bytes = 0xDEAF;
 ///
 /// println!("{:X}", get_nibbles(bytes, 1, 3));
@@ -259,9 +261,10 @@ pub enum Instruction {
 ///
 /// - Get the first nibble of the value
 /// ```
+/// # use chip8_core::instruction::{get_nibble, get_nibbles};
 /// # let bytes = 0xDEAF;
 ///
-/// println!("{:X}", get_nibble(byte, 0));
+/// println!("{:X}", get_nibble(bytes, 0));
 /// ```
 pub fn get_nibbles(value: u16, location: u8, size: u8) -> u16 {
     let mask = match size {
