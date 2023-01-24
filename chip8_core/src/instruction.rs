@@ -1,3 +1,5 @@
+use log::debug;
+
 type Register = u8;
 type Address = u16;
 type OpCode = u16;
@@ -402,7 +404,7 @@ impl From<u16> for Instruction {
                     _ => Instruction::UndefinedOperation(instruction),
                 }
             }
-            _ => Instruction::UndefinedOperation(instruction),
+            _ => unreachable!("get_nibble returned value above 0xF"),
         }
     }
 }

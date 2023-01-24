@@ -39,6 +39,10 @@ pub fn load_font(memory: &mut [u8]) {
     memory[75..80].copy_from_slice(&LETTER_F);
 }
 
+pub fn get_letter_address(letter: u8) -> u16 {
+    5 * letter as u16
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

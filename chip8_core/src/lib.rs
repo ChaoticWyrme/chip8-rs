@@ -4,8 +4,9 @@ pub mod instruction;
 pub mod keypad;
 pub mod time;
 
-use std::fmt::Display;
+use std::fmt::{Display, Write};
 
+use byteorder::ByteOrder;
 use instruction::Instruction;
 use keypad::{Key, Keypad};
 use rand::Rng;
@@ -67,7 +68,7 @@ impl Default for Chip8 {
 
 impl Chip8 {
     pub fn new() -> Self {
-        Chip8 {
+        let mut chip8 = Chip8 {
             // rom: [0u8; 0x1000],
             memory: [0u8; 0x1000],
             registers: [0_u8; 16],
@@ -79,7 +80,9 @@ impl Chip8 {
             keypad: Keypad::default(),
             running: true,
             key_wait_register: None,
-        }
+        };
+        font::load_font(&mut chip8.memory);
+        chip8
     }
 
     pub fn is_key_waiting(&self) -> bool {
@@ -100,9 +103,8 @@ impl Chip8 {
         instruction: instruction::Instruction,
     ) -> Result<(), DecodingError> {
         match instruction {
-            Instruction::MachineCodeCall(_) => unimplemented!(),
-            // TODO: IMPLEMENT DISPLAY
-            Instruction::ClearDisplay => unimplemented!(),
+            Instruction::MachineCodeCall(_) => unimplemented!("Machine Code"),
+            Instruction::ClearDisplay => self.display.clear(),
             Instruction::Return => {
                 if self.stack.len() == 0 {
                     self.running = false;
@@ -165,11 +167,14 @@ impl Chip8 {
                 self.registers[register as usize] = rand & mask
             }
             Instruction::Draw { position, height } => {
+                let mem_start = self.pointer as usize;
+                // 8 bytes per row
+                let mem_end = self.pointer as usize + (8 * height as usize);
                 self.display.draw_sprite(
-                    position.0,
-                    position.1,
+                    self.registers[position.0 as usize],
+                    self.registers[position.1 as usize],
                     height,
-                    &self.memory[self.pointer as usize..(8 * height) as usize],
+                    &self.memory[mem_start..mem_end],
                 );
             }
             Instruction::KeyPressed(register) => {
@@ -204,7 +209,9 @@ impl Chip8 {
             Instruction::AddToPointer(register) => {
                 self.pointer += self.registers[register as usize] as u16;
             }
-            Instruction::SetPointerToLetter(register) => todo!("Need to find chip8 font"),
+            Instruction::SetPointerToLetter(register) => {
+                self.pointer = font::get_letter_address(self.registers[register as usize])
+            }
             Instruction::SplitNumber(register) => {
                 let value = self.registers[register as usize];
                 let digits = [
@@ -314,7 +321,7 @@ impl Chip8 {
         let instruction_data: u16 = byteorder::BigEndian::read_u16(
             &self.memory[(self.pc as usize)..((self.pc + 2) as usize)],
         );
-        println!("Instruction: {:#x}", instruction_data);
+        // println!("Instruction: {:#x}", instruction_data);
         instruction_data.into()
     }
 
@@ -329,6 +336,52 @@ impl Chip8 {
     pub fn run(&mut self) -> Result<(), DecodingError> {
         while self.running {
             self.run_next()?;
+            println!();
+            MockFrontend::render_display(&self.display);
+
+            let mut user_input = String::new();
+            loop {
+                std::io::stdin()
+                    .read_line(&mut user_input)
+                    .expect("Error reading from stdin");
+
+                if user_input.starts_with("instruction") {
+                    let suffix = user_input.split_once("instruction").unwrap().1.trim();
+                    let mut address = self.pc;
+                    if suffix.len() == 0 {
+                        // print current pc instruction
+                        address = self.pc;
+                    } else if suffix.starts_with('-') {
+                        let offset =
+                            u16::from_str_radix(suffix.split_once('-').unwrap().1, 16).unwrap();
+                        address -= 2 * offset;
+                    } else if suffix.starts_with('+') {
+                        let offset =
+                            u16::from_str_radix(suffix.split_once('-').unwrap().1, 16).unwrap();
+                        address += 2 * offset;
+                    }
+                    user_input = format!("memory {:#x}", address);
+                }
+
+                if user_input.starts_with("registers") {
+                    println!("Registers: \n{}", self.registers_to_string())
+                } else if user_input.starts_with("pc") {
+                    println!("Program counter: {:#6X}", self.pc);
+                } else if user_input.starts_with("memory 0x") {
+                    let hex_str = user_input.split("0x").nth(1).unwrap().trim();
+                    let address = usize::from_str_radix(hex_str, 16).unwrap();
+                    let mem = &self.memory[address..address + 2];
+
+                    println!(
+                        "Memory at address: {:#6X}: {:#6X}",
+                        address,
+                        byteorder::BigEndian::read_u16(mem)
+                    );
+                } else {
+                    break;
+                }
+                user_input.clear();
+            }
         }
         Ok(())
     }
@@ -350,7 +403,7 @@ impl Display for Chip8 {
 
 /// A display frontend
 pub trait Frontend {
-    fn render_display(screen: display::Display);
+    fn render_display(screen: &display::Display);
     fn play_tone();
     fn stop_tone();
     fn is_key_pressed(key: char);
@@ -360,10 +413,28 @@ pub trait Frontend {
 struct MockFrontend;
 
 impl Frontend for MockFrontend {
-    fn render_display(screen: display::Display) {
+    fn render_display(screen: &display::Display) {
         const OFF_CHAR: char = '░'; // U+2591: LIGHT SHADE
         const ON_CHAR: char = '█'; // U+2588: FULL BLOCK
                                    // alternatively: ▓ U+2593: DARK SHADE
+
+        let mut row_buf = String::with_capacity(ON_CHAR.len_utf8() * screen.get_width());
+
+        for row in screen.pixels.iter() {
+            row_buf.clear();
+            for pixel in row {
+                if *pixel {
+                    row_buf
+                        .write_char(ON_CHAR)
+                        .expect("Error writing to string buffer");
+                } else {
+                    row_buf
+                        .write_char(OFF_CHAR)
+                        .expect("Error writing to string buffer");
+                }
+            }
+            println!("{}", row_buf);
+        }
     }
 
     fn play_tone() {

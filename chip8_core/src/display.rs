@@ -43,9 +43,10 @@ impl Display {
         let pos_x = pos_x as usize;
         let pos_y = pos_y as usize;
         let mut collide_check = false;
+        let mut row_index = 0;
 
         for y in pos_y..(pos_y + height) {
-            let row: u8 = memory[y];
+            let row: u8 = memory[row_index];
             let mut mask: u8 = 0b10000000;
             for x in pos_x..(pos_x + width) {
                 if (row & mask) != 0 {
@@ -57,6 +58,7 @@ impl Display {
                 }
                 mask = mask >> 1;
             }
+            row_index += 1;
         }
 
         collide_check
@@ -67,6 +69,14 @@ impl Display {
     }
     pub fn get_height(&self) -> usize {
         self.height
+    }
+
+    pub fn clear(&mut self) {
+        // set every pixel to false
+        self.pixels
+            .iter_mut()
+            .flatten()
+            .for_each(|pixel| *pixel = false);
     }
 }
 
