@@ -103,7 +103,8 @@ impl Chip8 {
         instruction: instruction::Instruction,
     ) -> Result<(), DecodingError> {
         match instruction {
-            Instruction::MachineCodeCall(_) => unimplemented!("Machine Code"),
+            Instruction::MachineCodeCall(opcode) => unimplemented!("Machine Code {:X}", opcode),
+            Instruction::Halt => self.running = false,
             Instruction::ClearDisplay => self.display.clear(),
             Instruction::Return => {
                 if self.stack.len() == 0 {
@@ -144,7 +145,9 @@ impl Chip8 {
                 self.registers[register as usize] = value;
             }
             Instruction::AddConst { register, value } => {
-                self.registers[register as usize] += value;
+                // wrapping add, but don't set carry flag
+                self.registers[register as usize] =
+                    self.registers[register as usize].wrapping_add(value);
             }
             Instruction::Math {
                 source,
@@ -341,6 +344,7 @@ impl Chip8 {
 
             let mut user_input = String::new();
             loop {
+                break;
                 std::io::stdin()
                     .read_line(&mut user_input)
                     .expect("Error reading from stdin");
@@ -382,6 +386,7 @@ impl Chip8 {
                 }
                 user_input.clear();
             }
+            println!("Halted");
         }
         Ok(())
     }

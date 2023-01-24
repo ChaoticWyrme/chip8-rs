@@ -72,6 +72,10 @@ pub enum Instruction {
     /// Probably not neccesary
     MachineCodeCall(u16),
 
+    /// 0x0000
+    /// Halt emulator
+    Halt,
+
     /// 0x00E0
     /// Clears the screen
     ClearDisplay,
@@ -119,7 +123,7 @@ pub enum Instruction {
     },
 
     /// 0x7XNN
-    /// Vx += NN (no carry flag)
+    /// Vx += NN (no carry flag, but still wrap)
     AddConst {
         register: Register,
         value: u8,
@@ -310,12 +314,14 @@ impl From<u16> for Instruction {
         let category_num = get_nibble(instruction, 0);
         match category_num {
             0x0 => {
-                if instruction == 0x00E0 {
+                if instruction == 0x0000 {
+                    Instruction::Halt
+                } else if instruction == 0x00E0 {
                     Instruction::ClearDisplay
                 } else if instruction == 0x00EE {
                     Instruction::Return
                 } else {
-                    Instruction::MachineCodeCall(0x0FFF & instruction)
+                    Instruction::MachineCodeCall(instruction)
                 }
             }
             0x1 => Instruction::Goto {
@@ -362,7 +368,7 @@ impl From<u16> for Instruction {
                 get_nibble(instruction, 1) as Register,
                 get_nibble(instruction, 2) as Register,
             ),
-            0xA => Instruction::SetPointer(get_nibbles(instruction, 1, 3)),
+            0xA => Instruction::SetPointer(instruction & 0x0FFF),
             0xB => Instruction::JumpRelative {
                 offset: instruction & 0x0FFF,
             },
