@@ -1,0 +1,66 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in library 'chip8_core'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=chip8_core"
+                ],
+                "filter": {
+                    "name": "chip8_core",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'chip8_emu'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=chip8_emu",
+                    "--package=chip8_emu",
+                ],
+                "filter": {
+                    "name": "chip8_emu",
+                    "kind": "bin"
+                }
+            },
+            "args": [
+                "${workspaceFolder}/roms/chip8-test-suite/bin/chip8-test-suite.ch8"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug unit tests in executable 'chip8_emu'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--bin=chip8_emu",
+                    "--package=chip8_emu"
+                ],
+                "filter": {
+                    "name": "chip8_emu",
+                    "kind": "bin"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

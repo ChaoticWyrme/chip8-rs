@@ -189,7 +189,7 @@ impl Chip8 {
                 }
             }
             Instruction::KeyNotPressed(register) => {
-                let key = 0x0F & self.registers[register as usize];
+                let key = self.registers[register as usize];
                 println!("Is key {:x} (from register {}) pressed?", key, register);
                 if !self.keypad.is_key_pressed(
                     Key::from_u8(key).expect("Register contains value not in keypad range (0-15)"),
@@ -229,12 +229,12 @@ impl Chip8 {
                 self.memory[self.pointer as usize + 2] = digits[2];
             }
             Instruction::RegisterDump(register) => {
-                for i in 0..register as usize {
+                for i in 0..=register as usize {
                     self.memory[self.pointer as usize + i] = self.registers[i]
                 }
             }
             Instruction::RegisterLoad(register) => {
-                for i in 0..register as usize {
+                for i in 0..=register as usize {
                     self.registers[i] = self.memory[self.pointer as usize + i];
                 }
             }
@@ -321,7 +321,6 @@ impl Chip8 {
     }
 
     fn get_instruction_at_pc(&self) -> Instruction {
-        use byteorder::ByteOrder;
         let instruction_data: u16 = byteorder::BigEndian::read_u16(
             &self.memory[(self.pc as usize)..((self.pc + 2) as usize)],
         );
@@ -343,22 +342,24 @@ impl Chip8 {
             self.run_next()?;
             println!();
             MockFrontend::render_display(&self.display);
+            println!("Instruction: {:X?}", self.get_instruction_at_pc());
 
             if self.is_key_waiting() {
                 loop {
                     print!("Enter key: ");
                     let mut key = String::new();
                     std::io::stdin().read_line(&mut key).unwrap();
-                    match u8::from_str_radix(&key, 16) {
+                    match u8::from_str_radix(&key.trim(), 16) {
                         Ok(val) => {
                             if val <= 0xf {
                                 self.registers[self.key_wait_register.unwrap()] = val;
+                                self.key_wait_register = None;
                                 break;
                             }
                         }
                         Err(_) => {}
                     }
-                    println!("Error parsing, is this a single hex character? Try again: ");
+                    print!("Error parsing, is this a single hex character?\nTry again: ");
                 }
             }
 
