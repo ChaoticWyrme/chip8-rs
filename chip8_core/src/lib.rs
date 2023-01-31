@@ -92,7 +92,7 @@ impl Chip8 {
     fn registers_to_string(&self) -> String {
         let mut strings = Vec::new();
         for i in 0..self.registers.len() {
-            strings.push(format!("R{:#x}: {:#x}", i, self.registers[i]));
+            strings.push(format!("R{:X}: {:#x}", i, self.registers[i]));
         }
         strings.join(", ")
     }
@@ -189,7 +189,8 @@ impl Chip8 {
                 }
             }
             Instruction::KeyNotPressed(register) => {
-                let key = self.registers[register as usize];
+                let key = 0x0F & self.registers[register as usize];
+                println!("Is key {:x} (from register {}) pressed?", key, register);
                 if !self.keypad.is_key_pressed(
                     Key::from_u8(key).expect("Register contains value not in keypad range (0-15)"),
                 ) {
@@ -331,20 +332,41 @@ impl Chip8 {
     pub fn run_next(&mut self) -> Result<(), DecodingError> {
         self.timers.do_ticks();
         let instruction = self.get_instruction_at_pc();
-        self.handle_instruction(instruction)?;
         self.next_instruction();
+        self.handle_instruction(instruction)?;
         Ok(())
     }
 
     pub fn run(&mut self) -> Result<(), DecodingError> {
+        let mut skip_debug = false;
         while self.running {
             self.run_next()?;
             println!();
             MockFrontend::render_display(&self.display);
 
+            if self.is_key_waiting() {
+                loop {
+                    print!("Enter key: ");
+                    let mut key = String::new();
+                    std::io::stdin().read_line(&mut key).unwrap();
+                    match u8::from_str_radix(&key, 16) {
+                        Ok(val) => {
+                            if val <= 0xf {
+                                self.registers[self.key_wait_register.unwrap()] = val;
+                                break;
+                            }
+                        }
+                        Err(_) => {}
+                    }
+                    println!("Error parsing, is this a single hex character? Try again: ");
+                }
+            }
+
             let mut user_input = String::new();
             loop {
-                break;
+                if skip_debug {
+                    break;
+                }
                 std::io::stdin()
                     .read_line(&mut user_input)
                     .expect("Error reading from stdin");
@@ -377,17 +399,31 @@ impl Chip8 {
                     let mem = &self.memory[address..address + 2];
 
                     println!(
-                        "Memory at address: {:#6X}: {:#6X}",
+                        "Memory at address: {:#X}: {:#X}",
                         address,
                         byteorder::BigEndian::read_u16(mem)
                     );
+                } else if user_input.starts_with("set 0x") {
+                    let raw_input = user_input.split_once("0x").unwrap().1;
+                    let (address_str, val_str) = raw_input.split_once("0x").unwrap();
+                    let address =
+                        usize::from_str_radix(address_str.trim(), 16).expect("Invalid usize hex");
+                    let val = u8::from_str_radix(val_str.trim(), 16).expect("Invalid u8 hex");
+                    self.memory[address] = val;
+                    println!("Set address {:X} to {:X}", address, val);
+                } else if user_input.starts_with("skip") {
+                    skip_debug = true;
+                    println!("Skipping debug until halt");
+                    break;
+                } else if user_input.starts_with("pointer") {
+                    println!("Pointer: {:X}", self.pointer);
                 } else {
                     break;
                 }
                 user_input.clear();
             }
-            println!("Halted");
         }
+        println!("Halted");
         Ok(())
     }
 }

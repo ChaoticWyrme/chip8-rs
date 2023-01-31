@@ -1,3 +1,6 @@
 [submodule "roms/chip8-roms"]
 	path = roms/chip8-roms
 	url = https://github.com/kripod/chip8-roms
+[submodule "roms/chip8-test-suite"]
+	path = roms/chip8-test-suite
+	url = https://github.com/Timendus/chip8-test-suite
