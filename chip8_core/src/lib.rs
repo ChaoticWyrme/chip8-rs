@@ -18,9 +18,9 @@ use num_traits::FromPrimitive;
 
 #[derive(Error, Debug)]
 pub enum DecodingError {
-    #[error("Opcode ({opcode:?}) doesn't match a known one")]
+    #[error("Opcode ({opcode:X?}) doesn't match a known one")]
     InvalidOpcode { opcode: u16 },
-    #[error("No math operation matching the given opcode ({opcode:?})")]
+    #[error("No math operation matching the given opcode ({opcode:X?})")]
     InvalidMathOperation { opcode: u16 },
     #[error("The {operation:?} operation cannot run because {reason:?}.")]
     InvalidState { operation: String, reason: String },
@@ -73,7 +73,7 @@ impl Chip8 {
             memory: [0u8; 0x1000],
             registers: [0_u8; 16],
             pointer: 0,
-            pc: 0,
+            pc: 0x200,
             stack: vec![0u16; 0],
             timers: Timers::new(),
             display: display::Display::default(),
@@ -462,7 +462,7 @@ impl Frontend for MockFrontend {
 
         let mut row_buf = String::with_capacity(ON_CHAR.len_utf8() * screen.get_width());
 
-        for row in screen.pixels.iter() {
+        for row in screen.pixels.chunks(screen.get_width()) {
             row_buf.clear();
             for pixel in row {
                 if *pixel {
