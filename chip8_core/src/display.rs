@@ -1,5 +1,5 @@
 pub struct Display {
-    pub pixels: Vec<Vec<bool>>,
+    pub pixels: Vec<bool>,
     width: usize,
     height: usize,
 }
@@ -14,10 +14,14 @@ impl Display {
     pub fn new(width: usize, height: usize) -> Self {
         debug_assert_eq!(width % 8, 0, "Width must be a multiple of 8");
         Display {
-            pixels: vec![vec![false; width]; height],
+            pixels: vec![false; width * height],
             width,
             height,
         }
+    }
+
+    fn get_offset(&self, x: usize, y: usize) -> usize {
+        y * self.width + x
     }
 
     /// Flips pixel at (x, y) to it's opposite state
@@ -27,8 +31,9 @@ impl Display {
     /// # Returns
     /// Returns the new value of the pixel
     fn flip_pixel(&mut self, x: usize, y: usize) -> bool {
-        self.pixels[y][x] = !self.pixels[y][x];
-        return self.pixels[y][x];
+        let offset = self.get_offset(x, y);
+        self.pixels[offset] = !self.pixels[offset];
+        return self.pixels[offset];
     }
 
     /// Draws a sprite from memory to the screen
@@ -73,10 +78,20 @@ impl Display {
 
     pub fn clear(&mut self) {
         // set every pixel to false
-        self.pixels
-            .iter_mut()
-            .flatten()
-            .for_each(|pixel| *pixel = false);
+        self.pixels.iter_mut().for_each(|pixel| *pixel = false);
+    }
+}
+
+impl std::fmt::Display for Display {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for line in self.pixels.as_slice().chunks(self.width as usize) {
+            for &pixel in line {
+                let symbol = if pixel { '█' } else { '░' };
+                write!(f, "{}", symbol)?;
+            }
+            write!(f, "\n")?;
+        }
+        Ok(())
     }
 }
 
