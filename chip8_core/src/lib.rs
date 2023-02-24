@@ -14,7 +14,7 @@ use time::Timers;
 
 use thiserror::Error;
 
-use num_traits::FromPrimitive;
+use num_traits::{FromPrimitive, ToPrimitive};
 
 #[derive(Error, Debug)]
 pub enum DecodingError {
@@ -87,6 +87,20 @@ impl Chip8 {
 
     pub fn is_key_waiting(&self) -> bool {
         self.key_wait_register.is_some()
+    }
+
+    pub fn press_key(&mut self, key: Key) {
+        self.keypad.set_key(key, keypad::KeyState::Pressed);
+        if let Some(register) = self.key_wait_register {
+            self.registers[register] = key
+                .to_u8()
+                .expect("This shouldn't fail, it's an enum with a u8 value");
+            self.key_wait_register = None;
+        }
+    }
+
+    pub fn release_key(&mut self, key: Key) {
+        self.keypad.set_key(key, keypad::KeyState::NotPressed);
     }
 
     fn registers_to_string(&self) -> String {
