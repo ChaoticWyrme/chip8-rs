@@ -1,9 +1,9 @@
 pub mod utils;
 
+use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
 use chip8_core::Chip8;
-use once_cell::unsync::Lazy;
 use wasm_bindgen::prelude::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -11,8 +11,6 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
-
-static mut STATE: Lazy<Chip8> = Lazy::new(|| Chip8::new());
 
 macro_rules! log {
     ( $( $t:tt )* ) => {
@@ -49,9 +47,19 @@ impl DerefMut for Chip8Wrap {
 impl Chip8Wrap {
     #[wasm_bindgen(constructor)]
     pub fn new() -> Chip8Wrap {
-        let mut emu = Chip8Wrap(Chip8::new());
-        emu.memory[0x200..0x200 + IBM_LOGO.len()].copy_from_slice(IBM_LOGO);
-        emu
+        Chip8Wrap(Chip8::new())
+    }
+
+    pub fn load_ibm(&mut self) {
+        self.memory[0x200..0x200 + IBM_LOGO.len()].copy_from_slice(IBM_LOGO);
+    }
+
+    pub fn load_rom(&mut self, rom: &[u8]) {
+        if rom.len() >= self.memory.len() - 0x200 {
+            log!("Rom too large, there may be errors");
+        } else {
+            self.memory[0x200..0x200 + rom.len()].copy_from_slice(rom);
+        }
     }
 
     pub fn get_display_pointer(&self) -> *const bool {
@@ -65,28 +73,24 @@ impl Chip8Wrap {
     pub fn render_text(&self) -> String {
         self.display.to_string()
     }
-}
 
-#[wasm_bindgen]
-pub fn init_emu() {
-    unsafe { STATE.memory[0x200..0x200 + IBM_LOGO.len()].copy_from_slice(IBM_LOGO) }
-}
+    pub fn key_down(&mut self, key: u8) {
+        if key > 0xf {
+            // Return early for invalid input
+            return;
+        }
 
-#[wasm_bindgen]
-pub fn get_display_pointer() -> *const bool {
-    unsafe { STATE.display.pixels.as_ptr() }
-}
-
-#[wasm_bindgen]
-pub fn tick() {
-    unsafe {
-        STATE.run_next().unwrap();
+        self.press_key(key.try_into().expect("Already checked range"));
     }
-}
 
-#[wasm_bindgen]
-pub fn render_text() -> String {
-    unsafe { STATE.display.to_string() }
+    pub fn key_up(&mut self, key: u8) {
+        if key > 0xf {
+            // Return early for invalid input
+            return;
+        }
+
+        self.release_key(key.try_into().expect("Already checked range"));
+    }
 }
 
 #[wasm_bindgen]

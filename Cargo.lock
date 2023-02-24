@@ -70,7 +70,6 @@ version = "0.1.0"
 dependencies = [
  "chip8_core",
  "console_error_panic_hook",
- "once_cell",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web-sys",
