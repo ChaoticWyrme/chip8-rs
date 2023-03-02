@@ -1,0 +1,70 @@
+name: "Build web interface"
+run-name: ${{ github.actor }} deploying web interface
+on:
+  push:
+    branches:
+      - deploy
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # Checkout the repo
+      - name: Setup | Checkout
+        uses: actions/checkout@v3
+
+      # Install rustup with wasm target
+      - name: Setup | Rust
+        uses: actions-rs/toolchain@v1.0.6
+        with:
+          toolchain: stable
+          target: wasm32-unknown-unknown
+
+      # Install the wasm-pack tool
+      - name: Setup | wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+
+      # Install nodejs
+      - name: Setup | Node
+        uses: actions/setup-node@v3.6.0
+
+      # Install chip8_web dependencies
+      - name: Setup | NPM
+        working-directory: chip8_web
+        run: npm ci
+
+      # Build chip8_wasm
+      - name: Build | WASM
+        working-directory: chip8_wasm
+        run: |
+          wasm-pack build  --target web --release
+      
+      # Build chip8_web
+      - name: Build | Web
+        working-directory: chip8_web
+        run: npm run build
+
+      # Compress chip8_web/dist/ and upload artifact for deploy job
+      - name: Upload to pages
+        uses: actions/upload-pages-artifact@v1.0.7
+        with:
+          path: chip8_web/dist/
+
+  deploy:
+    # run build step before deploy
+    needs: build
+    
+    permissions:
+      pages: write     # Pages deploy permission
+      id-token: write  # verify deployment is from appropriate source
+    
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+      
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v1
