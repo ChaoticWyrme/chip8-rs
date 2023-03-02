@@ -46,7 +46,7 @@ pub struct Chip8 {
     pub display: display::Display,
     pub keypad: Keypad,
     pub running: bool,
-    key_wait_register: Option<usize>,
+    pub key_wait_register: Option<usize>,
 }
 
 impl Default for Chip8 {
@@ -85,16 +85,29 @@ impl Chip8 {
         chip8
     }
 
+    pub fn reset(&mut self) {
+        self.memory = [0u8; 0x1000];
+        self.registers = Default::default();
+        self.pointer = 0;
+        self.pc = 0x200;
+        self.timers = Default::default();
+        self.display = Default::default();
+        self.keypad = Default::default();
+        self.key_wait_register = None;
+    }
+
     pub fn is_key_waiting(&self) -> bool {
         self.key_wait_register.is_some()
     }
 
     pub fn press_key(&mut self, key: Key) {
         self.keypad.set_key(key, keypad::KeyState::Pressed);
-        if let Some(register) = self.key_wait_register {
-            self.registers[register] = key
+        if let Some(wait_register) = self.key_wait_register {
+            let key_val = key
                 .to_u8()
                 .expect("This shouldn't fail, it's an enum with a u8 value");
+            log::info!("Key wait done with key: {:X}", key_val);
+            self.registers[wait_register] = key_val;
             self.key_wait_register = None;
         }
     }
@@ -116,6 +129,7 @@ impl Chip8 {
         &mut self,
         instruction: instruction::Instruction,
     ) -> Result<(), DecodingError> {
+        log::trace!("Executing instruction {:X?}", instruction);
         match instruction {
             Instruction::MachineCodeCall(opcode) => unimplemented!("Machine Code {:X}", opcode),
             Instruction::Halt => self.running = false,
@@ -215,6 +229,7 @@ impl Chip8 {
                 self.registers[register as usize] = self.timers.delay as u8
             }
             Instruction::WaitKeyPress(register) => {
+                log::info!("Waiting on register {:X}", register);
                 self.key_wait_register = Some(register as usize);
                 // probably should have a callback for this
             }
@@ -344,9 +359,11 @@ impl Chip8 {
 
     pub fn run_next(&mut self) -> Result<(), DecodingError> {
         self.timers.do_ticks();
-        let instruction = self.get_instruction_at_pc();
-        self.next_instruction();
-        self.handle_instruction(instruction)?;
+        if !self.is_key_waiting() {
+            let instruction = self.get_instruction_at_pc();
+            self.next_instruction();
+            self.handle_instruction(instruction)?;
+        }
         Ok(())
     }
 

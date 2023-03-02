@@ -12,13 +12,8 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-macro_rules! log {
-    ( $( $t:tt )* ) => {
-        web_sys::console::log_1(&format!( $( $t )* ).into());
-    }
-}
-
-const IBM_LOGO: &'static [u8] = include_bytes!("../../roms/chip8-roms/programs/IBM Logo.ch8");
+const DEFAULT_ROM: &'static [u8] =
+    include_bytes!("../../roms/chip8-test-suite/bin/chip8-test-suite.ch8");
 
 #[wasm_bindgen]
 extern "C" {
@@ -50,13 +45,17 @@ impl Chip8Wrap {
         Chip8Wrap(Chip8::new())
     }
 
-    pub fn load_ibm(&mut self) {
-        self.memory[0x200..0x200 + IBM_LOGO.len()].copy_from_slice(IBM_LOGO);
+    pub fn reset(&mut self) {
+        self.0.reset();
+    }
+
+    pub fn load_default(&mut self) {
+        self.memory[0x200..0x200 + DEFAULT_ROM.len()].copy_from_slice(DEFAULT_ROM);
     }
 
     pub fn load_rom(&mut self, rom: &[u8]) {
         if rom.len() >= self.memory.len() - 0x200 {
-            log!("Rom too large, there may be errors");
+            log::warn!("Rom too large, there may be errors");
         } else {
             self.memory[0x200..0x200 + rom.len()].copy_from_slice(rom);
         }
@@ -91,6 +90,41 @@ impl Chip8Wrap {
 
         self.release_key(key.try_into().expect("Already checked range"));
     }
+
+    pub fn get_timers(&self) -> Timers {
+        Timers {
+            delay_timer: self.timers.delay,
+            sound_timer: self.timers.sound,
+        }
+    }
+
+    pub fn exec_instruction(&mut self, opcode: u16) {
+        let instruction = opcode.into();
+        log::debug!("Executing {:?}", instruction);
+        self.handle_instruction(instruction).unwrap();
+    }
+
+    pub fn set_log_level(&self, level_str: &str) {
+        let level = match level_str.trim() {
+            "debug" => log::LevelFilter::Debug,
+            "error" => log::LevelFilter::Error,
+            "trace" => log::LevelFilter::Trace,
+            "warn" => log::LevelFilter::Warn,
+            "info" => log::LevelFilter::Warn,
+            _ => log::LevelFilter::Debug,
+        };
+        log::set_max_level(level);
+    }
+
+    pub fn get_wait_register(&self) -> String {
+        format!("{:X?}", self.key_wait_register)
+    }
+}
+
+#[wasm_bindgen]
+pub struct Timers {
+    pub delay_timer: usize,
+    pub sound_timer: usize,
 }
 
 #[wasm_bindgen]
