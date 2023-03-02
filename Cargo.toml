@@ -5,7 +5,7 @@ authors.workspace = true
 edition.workspace = true
 
 [workspace]
-members = ["chip8_core"]
+members = ["chip8_core", "chip8_wasm"]
 
 [workspace.package]
 version = "0.1.0"
@@ -14,7 +14,13 @@ edition = "2021"
 
 [workspace.dependencies]
 log = "0.4.17"
+wasm-bindgen = "0.2.63"
 
 [dependencies]
 chip8_core = { path = "chip8_core" }
 env_logger = "0.9.3"
+
+[profile.release]
+# Optimize for file size on release
+opt-level = "s"
+debug = true

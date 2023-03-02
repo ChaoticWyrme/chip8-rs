@@ -21,7 +21,7 @@ impl Display {
     }
 
     fn get_offset(&self, x: usize, y: usize) -> usize {
-        y * self.width + x
+        (y * self.width) + x
     }
 
     /// Flips pixel at (x, y) to it's opposite state
@@ -32,6 +32,10 @@ impl Display {
     /// Returns the new value of the pixel
     fn flip_pixel(&mut self, x: usize, y: usize) -> bool {
         let offset = self.get_offset(x, y);
+        // log::info!(
+        //     "Offset: {offset} = x({x}) + (y({y}) * width({})",
+        //     self.width
+        // );
         self.pixels[offset] = !self.pixels[offset];
         return self.pixels[offset];
     }
@@ -42,20 +46,21 @@ impl Display {
     /// * `memory` - A slice of the memory containing the sprite data, should be
     /// # Returns
     /// Returns true if a bit is flipped from on to off, false otherwise.
-    pub fn draw_sprite(&mut self, pos_x: u8, pos_y: u8, height: u8, memory: &[u8]) -> bool {
-        let height = height as usize;
-        let width: usize = 8;
+    pub fn draw_sprite(&mut self, pos_x: u8, pos_y: u8, sprite_height: u8, memory: &[u8]) -> bool {
+        let sprite_height = sprite_height as usize;
+        let sprite_width: usize = 8;
         let pos_x = pos_x as usize;
         let pos_y = pos_y as usize;
         let mut collide_check = false;
         let mut row_index = 0;
 
-        for y in pos_y..(pos_y + height) {
+        for y in pos_y..(pos_y + sprite_height) {
             let row: u8 = memory[row_index];
             let mut mask: u8 = 0b10000000;
-            for x in pos_x..(pos_x + width) {
+            for x in pos_x..(pos_x + sprite_width) {
                 if (row & mask) != 0 {
-                    let result = self.flip_pixel(x, y);
+                    // modulo coordinates, so that it wraps around the screen
+                    let result = self.flip_pixel(x % self.width, y % self.height);
                     // if a bit is flipped from on to off, this function should return true
                     if !result {
                         collide_check = true;

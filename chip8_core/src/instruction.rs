@@ -1,5 +1,3 @@
-use log::debug;
-
 type Register = u8;
 type Address = u16;
 type OpCode = u16;
