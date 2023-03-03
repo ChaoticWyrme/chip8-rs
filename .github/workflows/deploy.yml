@@ -1,9 +1,10 @@
 name: "Build web interface"
-run-name: ${{ github.actor }} deploying web interface
+run-name: Deploying web interface to GitHub Pages
 on:
   push:
     branches:
       - deploy
+  workflow_dispatch:
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -14,9 +15,8 @@ jobs:
 
       # Install rustup with wasm target
       - name: Setup | Rust
-        uses: actions-rs/toolchain@v1.0.6
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           target: wasm32-unknown-unknown
 
       # Install the wasm-pack tool
@@ -37,7 +37,7 @@ jobs:
         working-directory: chip8_wasm
         run: |
           wasm-pack build  --target web --release
-      
+
       # Build chip8_web
       - name: Build | Web
         working-directory: chip8_web
@@ -52,16 +52,16 @@ jobs:
   deploy:
     # run build step before deploy
     needs: build
-    
+
     permissions:
-      pages: write     # Pages deploy permission
-      id-token: write  # verify deployment is from appropriate source
-    
+      pages: write # Pages deploy permission
+      id-token: write # verify deployment is from appropriate source
+
     # Deploy to the github-pages environment
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-      
+
     # Specify runner + deployment step
     runs-on: ubuntu-latest
     steps:
