@@ -1,10 +1,17 @@
 <script lang="ts">
+  import { createEventDispatcher } from "svelte";
   import HexView from "./HexView.svelte";
 
   // if this is true, float to the left, to the right otherwise
   let left = false;
 
   let minimized = false;
+
+  const dispatch = createEventDispatcher();
+
+  function closeButton() {
+    dispatch("close");
+  }
 </script>
 
 <div class="fixed-wrapper" class:right={!left} class:left>
@@ -25,7 +32,7 @@
         >
           &gt;
         </button>
-        <button>X</button>
+        <button on:click={closeButton}>X</button>
       </div>
     </div>
     <div class="devtools-body" class:minimized>

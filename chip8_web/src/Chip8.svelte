@@ -62,6 +62,10 @@
   };
 
   function handleKeydown(event: KeyboardEvent) {
+    if (event.key === "F8") {
+      devTools = !devTools;
+    }
+
     let emuKey = KEYMAP[event.key.toLowerCase()];
     if (emuKey == undefined) {
       // filter out non-emu keys
@@ -94,6 +98,8 @@
     emu.reset();
     emu.load_rom(data);
   }
+
+  let devTools = false;
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
@@ -118,7 +124,9 @@
 
 <CanvasDisplay bind:this={canvas} />
 
-<DevTools />
+{#if devTools}
+  <DevTools on:close={() => (devTools = false)} />
+{/if}
 
 <!-- <pre id="chip8-canvas" /> -->
 <style>
