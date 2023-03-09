@@ -64,6 +64,10 @@ impl Chip8Wrap {
         self.display.pixels.as_ptr()
     }
 
+    pub fn get_ram_pointer(&self) -> *const u8 {
+        self.memory.as_ptr()
+    }
+
     pub fn tick(&mut self) {
         self.run_next().unwrap();
     }

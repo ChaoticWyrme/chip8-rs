@@ -9,6 +9,7 @@
   } from "./util/setImmediate";
 
   import roms from "./util/roms";
+  import DevTools from "./lib/DevTools.svelte";
 
   const emu: Chip8Wrap = getContext("emu");
   emu.load_default();
@@ -117,10 +118,12 @@
 
 <CanvasDisplay bind:this={canvas} />
 
+<DevTools />
+
 <!-- <pre id="chip8-canvas" /> -->
 <style>
   headers {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -129,8 +132,7 @@
     justify-content: space-around;
     flex-wrap: nowrap;
     border-bottom: black 1px solid;
-    padding-top: 1em;
-    padding-bottom: 1em;
+    padding: 0.4em 0px;
   }
 
   headers > #selectRom {
