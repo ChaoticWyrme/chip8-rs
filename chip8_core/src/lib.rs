@@ -318,20 +318,26 @@ impl Chip8 {
             }
             Subtract => {
                 self.registers[destination as usize] = dest_val.wrapping_sub(source_val);
-                // check if operation carried
+                // check if operation borrowed
+                // for some reason the boolean on this operation is the opposite of addition
                 // dest_val = cached value from before operation
-                self.set_carry(dest_val < self.registers[destination as usize]);
+                self.set_carry(dest_val > self.registers[destination as usize]);
             }
             BitshiftRight => {
-                self.set_carry(dest_val & 0b00000001 != 0);
+                // set carry flag after operation
+                let carry = dest_val & 0b0000_0001 != 0;
                 self.registers[destination as usize] = dest_val >> 1;
+                self.set_carry(carry);
             }
             Difference => {
-                self.registers[destination as usize] = source_val - dest_val;
+                self.registers[destination as usize] = source_val.wrapping_sub(dest_val);
+                self.set_carry(source_val > self.registers[destination as usize]);
             }
             BitshiftLeft => {
-                self.set_carry(dest_val & 0b10000000 != 0);
+                // set carry flag after operation
+                let carry = dest_val & 0b10000000 != 0;
                 self.registers[destination as usize] = dest_val << 1;
+                self.set_carry(carry);
             }
             UnknownOperation(opcode) => {
                 return Err(DecodingError::InvalidMathOperation { opcode });
