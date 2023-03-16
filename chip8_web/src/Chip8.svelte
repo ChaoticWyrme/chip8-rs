@@ -10,6 +10,7 @@
 
   import roms from "./util/roms";
   import DevTools from "./lib/DevTools.svelte";
+  import { Debouncer } from "./util/functions";
 
   const emu: Chip8Wrap = getContext("emu");
   emu.load_default();
@@ -22,12 +23,17 @@
   let canvas: CanvasDisplay;
   let timers: HTMLElement;
 
+  let debouncer = new Debouncer(() => emu.tick());
+  debouncer.setPerSecond(0);
+  // debugging
+  globalThis.debouncer = debouncer;
+
   function mainLoop() {
     // canvas.textContent = emu.render_text();
     let timerTimes = emu.get_timers();
     if (timers != undefined)
       timers.textContent = `Delay: ${timerTimes.delay_timer}\nSound: ${timerTimes.sound_timer}\n`;
-    emu.tick();
+    debouncer.activate();
 
     // setTimeout(mainLoop, 0);
     runImmediate(immediateTag);
