@@ -25,7 +25,7 @@ console_error_panic_hook = { version = "0.1.6", optional = true }
 # allocator, however.
 wee_alloc = { version = "0.4.5", optional = true }
 web-sys = { version = "0.3", features = ["console"] }
-console_log = { version = "0.2.0", features = ["color"] }
+console_log = { version = "1", features = ["color"] }
 log.workspace = true
 
 [dev-dependencies]
