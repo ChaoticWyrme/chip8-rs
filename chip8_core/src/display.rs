@@ -37,7 +37,7 @@ impl Display {
         //     self.width
         // );
         self.pixels[offset] = !self.pixels[offset];
-        return self.pixels[offset];
+        self.pixels[offset]
     }
 
     /// Draws a sprite from memory to the screen
@@ -52,9 +52,8 @@ impl Display {
         let pos_x = pos_x as usize;
         let pos_y = pos_y as usize;
         let mut collide_check = false;
-        let mut row_index = 0;
 
-        for y in pos_y..(pos_y + sprite_height) {
+        for (row_index, y) in (pos_y..(pos_y + sprite_height)).enumerate() {
             let row: u8 = memory[row_index];
             let mut mask: u8 = 0b10000000;
             for x in pos_x..(pos_x + sprite_width) {
@@ -66,9 +65,8 @@ impl Display {
                         collide_check = true;
                     }
                 }
-                mask = mask >> 1;
+                mask >>= 1;
             }
-            row_index += 1;
         }
 
         collide_check
@@ -89,12 +87,12 @@ impl Display {
 
 impl std::fmt::Display for Display {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for line in self.pixels.as_slice().chunks(self.width as usize) {
+        for line in self.pixels.as_slice().chunks(self.width) {
             for &pixel in line {
                 let symbol = if pixel { '█' } else { '░' };
                 write!(f, "{}", symbol)?;
             }
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
         Ok(())
     }

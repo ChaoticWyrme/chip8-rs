@@ -4,8 +4,6 @@ pub mod instruction;
 pub mod keypad;
 pub mod time;
 
-use std::fmt::{Display, Write};
-
 use byteorder::ByteOrder;
 use instruction::Instruction;
 use keypad::{Key, Keypad};
@@ -135,7 +133,7 @@ impl Chip8 {
             Instruction::Halt => self.running = false,
             Instruction::ClearDisplay => self.display.clear(),
             Instruction::Return => {
-                if self.stack.len() == 0 {
+                if self.stack.is_empty() {
                     self.running = false;
                     return Err(DecodingError::InvalidState {
                         operation: "Return".to_owned(),
@@ -253,7 +251,7 @@ impl Chip8 {
                     value % 10,       // ones digit
                 ];
 
-                self.memory[self.pointer as usize + 0] = digits[0];
+                self.memory[self.pointer as usize] = digits[0];
                 self.memory[self.pointer as usize + 1] = digits[1];
                 self.memory[self.pointer as usize + 2] = digits[2];
             }
@@ -378,7 +376,7 @@ impl Chip8 {
         while self.running {
             self.run_next()?;
             println!();
-            println!("{}", self.display.to_string());
+            println!("{}", self.display);
             println!("Instruction: {:X?}", self.get_instruction_at_pc());
 
             if self.is_key_waiting() {
@@ -386,15 +384,12 @@ impl Chip8 {
                     print!("Enter key: ");
                     let mut key = String::new();
                     std::io::stdin().read_line(&mut key).unwrap();
-                    match u8::from_str_radix(&key.trim(), 16) {
-                        Ok(val) => {
-                            if val <= 0xf {
-                                self.registers[self.key_wait_register.unwrap()] = val;
-                                self.key_wait_register = None;
-                                break;
-                            }
+                    if let Ok(val) = u8::from_str_radix(key.trim(), 16) {
+                        if val <= 0xf {
+                            self.registers[self.key_wait_register.unwrap()] = val;
+                            self.key_wait_register = None;
+                            break;
                         }
-                        Err(_) => {}
                     }
                     print!("Error parsing, is this a single hex character?\nTry again: ");
                 }
@@ -412,7 +407,7 @@ impl Chip8 {
                 if user_input.starts_with("instruction") {
                     let suffix = user_input.split_once("instruction").unwrap().1.trim();
                     let mut address = self.pc;
-                    if suffix.len() == 0 {
+                    if suffix.is_empty() {
                         // print current pc instruction
                         address = self.pc;
                     } else if suffix.starts_with('-') {
@@ -466,7 +461,7 @@ impl Chip8 {
     }
 }
 
-impl Display for Chip8 {
+impl std::fmt::Display for Chip8 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(
             f,
@@ -577,7 +572,7 @@ mod tests {
             vm.run_next().expect("Decoding error on test instruction");
 
             assert_eq!(vm.registers[1], 34 + 13);
-            assert_eq!(vm.get_carry(), false, "Unexpected positive carry flag");
+            assert!(!vm.get_carry(), "Unexpected positive carry flag");
         }
 
         #[test]
@@ -591,7 +586,7 @@ mod tests {
             vm.run_next().expect("Decoding error on test instruction");
 
             assert_eq!(vm.registers[1], 254_u8.wrapping_add(30), "Wrapping add");
-            assert_eq!(vm.get_carry(), true, "Unexpected non-one carry flag");
+            assert!(vm.get_carry(), "Unexpected non-one carry flag");
         }
 
         #[test]
@@ -619,7 +614,7 @@ mod tests {
             vm.run_next().expect("Decoding error on test instruction");
 
             assert_eq!(vm.registers[1], 54_u8.wrapping_sub(64));
-            assert_eq!(vm.get_carry(), true)
+            assert!(vm.get_carry())
         }
 
         #[test]

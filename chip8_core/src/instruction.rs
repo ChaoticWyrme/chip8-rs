@@ -469,7 +469,7 @@ mod tests {
         assert_eq!(
             Instruction::from(opcode),
             Instruction::Math {
-                source: source,
+                source,
                 destination,
                 operation: variant
             },

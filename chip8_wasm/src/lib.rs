@@ -12,7 +12,7 @@ use wasm_bindgen::prelude::*;
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-const DEFAULT_ROM: &'static [u8] = include_bytes!("../chip8-test-suite.ch8");
+const DEFAULT_ROM: &[u8] = include_bytes!("../chip8-test-suite.ch8");
 
 #[wasm_bindgen]
 extern "C" {
