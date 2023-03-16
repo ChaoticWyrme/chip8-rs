@@ -2,6 +2,7 @@ pub mod display;
 pub mod font;
 pub mod instruction;
 pub mod keypad;
+pub mod quirks;
 pub mod time;
 
 use byteorder::ByteOrder;
@@ -45,6 +46,7 @@ pub struct Chip8 {
     pub keypad: Keypad,
     pub running: bool,
     pub key_wait_register: Option<usize>,
+    pub quirks: quirks::QuirkConfig,
 }
 
 impl Default for Chip8 {
@@ -60,6 +62,7 @@ impl Default for Chip8 {
             keypad: Default::default(),
             running: true,
             key_wait_register: None,
+            quirks: Default::default(),
         }
     }
 }
@@ -78,6 +81,7 @@ impl Chip8 {
             keypad: Keypad::default(),
             running: true,
             key_wait_register: None,
+            quirks: Default::default(),
         };
         font::load_font(&mut chip8.memory);
         chip8
@@ -189,7 +193,16 @@ impl Chip8 {
             }
             Instruction::SetPointer(address) => self.pointer = address,
             Instruction::JumpRelative { offset } => {
-                self.pc = offset + self.registers[0] as u16;
+                // if alternate relative jump is enabled, then use the first nibble of the offset as the register
+                // otherwise, use register v0
+                let register: usize = if self.quirks.alt_rel_jump {
+                    // nibble 1 since offset is a u16 with only 3 bytes on the right,
+                    // so from the left the first nibble is the second one. Thus, nibble location 1
+                    instruction::get_nibble(offset, 1).into()
+                } else {
+                    0
+                };
+                self.pc = offset + self.registers[register] as u16;
             }
             Instruction::Random { register, mask } => {
                 let rand: u8 = rand::thread_rng().gen();
@@ -259,10 +272,16 @@ impl Chip8 {
                 for i in 0..=register as usize {
                     self.memory[self.pointer as usize + i] = self.registers[i]
                 }
+                if self.quirks.save_load_set_pointer {
+                    self.pointer += (register as u16) + 1;
+                }
             }
             Instruction::RegisterLoad(register) => {
                 for i in 0..=register as usize {
                     self.registers[i] = self.memory[self.pointer as usize + i];
+                }
+                if self.quirks.save_load_set_pointer {
+                    self.pointer += (register as u16) + 1;
                 }
             }
             Instruction::UndefinedOperation(opcode) => {
@@ -301,12 +320,21 @@ impl Chip8 {
             }
             BitwiseOr => {
                 self.registers[destination as usize] = source_val | dest_val;
+                if self.quirks.flag_reset {
+                    self.set_carry(false);
+                }
             }
             BitwiseAnd => {
                 self.registers[destination as usize] = source_val & dest_val;
+                if self.quirks.flag_reset {
+                    self.set_carry(false);
+                }
             }
             BitwiseXor => {
                 self.registers[destination as usize] = source_val ^ dest_val;
+                if self.quirks.flag_reset {
+                    self.set_carry(false);
+                }
             }
             Add => {
                 self.registers[destination as usize] = dest_val.wrapping_add(source_val);
@@ -321,20 +349,32 @@ impl Chip8 {
                 // dest_val = cached value from before operation
                 self.set_carry(dest_val > self.registers[destination as usize]);
             }
-            BitshiftRight => {
-                // set carry flag after operation
-                let carry = dest_val & 0b0000_0001 != 0;
-                self.registers[destination as usize] = dest_val >> 1;
-                self.set_carry(carry);
-            }
             Difference => {
                 self.registers[destination as usize] = source_val.wrapping_sub(dest_val);
                 self.set_carry(source_val > self.registers[destination as usize]);
             }
+            /* For bitshift instructions, if alternate shift is enabled,
+             * then bitshift source_val and store it in destination register,
+             * otherwise use dest_val
+             */
+            BitshiftRight => {
+                // calculate result depending on quirks
+                let (carry, result) = if self.quirks.alt_shift {
+                    (dest_val & 0b0000_0001 != 0, dest_val >> 1)
+                } else {
+                    (source_val & 0b0000_0001 != 0, source_val >> 1)
+                };
+                self.registers[destination as usize] = result;
+                self.set_carry(carry);
+            }
             BitshiftLeft => {
-                // set carry flag after operation
-                let carry = dest_val & 0b10000000 != 0;
-                self.registers[destination as usize] = dest_val << 1;
+                // calculate result depending on quirks
+                let (carry, result) = if self.quirks.alt_shift {
+                    (dest_val & 0b0000_0001 != 0, dest_val << 1)
+                } else {
+                    (source_val & 0b0000_0001 != 0, source_val << 1)
+                };
+                self.registers[destination as usize] = result;
                 self.set_carry(carry);
             }
             UnknownOperation(opcode) => {
