@@ -378,7 +378,7 @@ impl Chip8 {
         while self.running {
             self.run_next()?;
             println!();
-            MockFrontend::render_display(&self.display);
+            println!("{}", self.display.to_string());
             println!("Instruction: {:X?}", self.get_instruction_at_pc());
 
             if self.is_key_waiting() {
@@ -480,61 +480,9 @@ impl Display for Chip8 {
     }
 }
 
-/// A display frontend
-pub trait Frontend {
-    fn render_display(screen: &display::Display);
-    fn play_tone();
-    fn stop_tone();
-    fn is_key_pressed(key: char);
-    fn wait_for_key(key: char);
-}
-
-struct MockFrontend;
-
-impl Frontend for MockFrontend {
-    fn render_display(screen: &display::Display) {
-        const OFF_CHAR: char = '░'; // U+2591: LIGHT SHADE
-        const ON_CHAR: char = '█'; // U+2588: FULL BLOCK
-                                   // alternatively: ▓ U+2593: DARK SHADE
-
-        let mut row_buf = String::with_capacity(ON_CHAR.len_utf8() * screen.get_width());
-
-        for row in screen.pixels.chunks(screen.get_width()) {
-            row_buf.clear();
-            for pixel in row {
-                if *pixel {
-                    row_buf
-                        .write_char(ON_CHAR)
-                        .expect("Error writing to string buffer");
-                } else {
-                    row_buf
-                        .write_char(OFF_CHAR)
-                        .expect("Error writing to string buffer");
-                }
-            }
-            println!("{}", row_buf);
-        }
-    }
-
-    fn play_tone() {
-        todo!()
-    }
-
-    fn stop_tone() {
-        todo!()
-    }
-
-    fn is_key_pressed(key: char) {
-        todo!()
-    }
-
-    fn wait_for_key(key: char) {
-        todo!()
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    // TODO: Fix math tests, since I fixed subtle bugs in implementation
     // Should I move these tests to the integration tests?
     // use super::*;
 
