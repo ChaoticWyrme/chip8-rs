@@ -1,5 +1,6 @@
 const roms: Rom[] = [
     { title: 'Test Suite', filename: 'chip8-test-suite.ch8' },
+    { title: 'WIT SCDS Logo', filename: 'wit-scds.ch8' },
     { title: 'Minimal Snake', url: 'https://johnearnest.github.io/chip8Archive/roms/snek.ch8' },
     { title: 'Super Pong', url: 'https://johnearnest.github.io/chip8Archive/roms/superpong.ch8' }
 ];
