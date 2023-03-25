@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext, onDestroy, onMount } from "svelte";
-  import type { Chip8Wrap } from "chip8_wasm";
+  import type { Chip8 } from "chip8_wasm";
   import { formatHex } from "../util/format";
   import { generateHexRow } from "../util/functions";
 
@@ -26,7 +26,7 @@
   $: rowCount = (rangeEnd - rangeStart) / 0x10;
 
   const memory: WebAssembly.Memory = getContext("memory");
-  const emu: Chip8Wrap = getContext("emu");
+  const emu: Chip8 = getContext("emu");
   const ram_ptr = emu.get_ram_pointer();
   let hexRows: string[] = [];
 

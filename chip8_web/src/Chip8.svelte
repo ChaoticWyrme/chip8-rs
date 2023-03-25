@@ -1,21 +1,16 @@
 <script lang="ts">
-  import type { Chip8Wrap } from "chip8_wasm";
-  import { onDestroy, getContext, onMount } from "svelte";
+  import type { Chip8 } from "chip8_wasm";
+  import { getContext, onMount } from "svelte";
   import CanvasDisplay from "./lib/CanvasDisplay.svelte";
-  import {
-    registerImmediate,
-    clearImmediate,
-    runImmediate,
-  } from "./util/setImmediate";
-
+  import { cyclesPerFrame } from "./stores";
   import roms from "./util/roms";
   import DevTools from "./lib/DevTools.svelte";
   import { Debouncer } from "./util/functions";
 
-  const emu: Chip8Wrap = getContext("emu");
+  const emu: Chip8 = getContext("emu");
   emu.load_default();
 
-  const memory: WebAssembly.Memory = getContext("memory");
+  // const memory: WebAssembly.Memory = getContext("memory");
 
   // debugging
   globalThis.chip8 = emu;
@@ -28,24 +23,38 @@
   // debugging
   globalThis.debouncer = debouncer;
 
-  function mainLoop() {
-    // canvas.textContent = emu.render_text();
-    let timerTimes = emu.get_timers();
-    if (timers != undefined)
-      timers.textContent = `Delay: ${timerTimes.delay_timer}\nSound: ${timerTimes.sound_timer}\n`;
-    debouncer.activate();
+  let intervalID;
 
-    // setTimeout(mainLoop, 0);
-    runImmediate(immediateTag);
+  function renderTimer() {
+    let timerTimes = emu.timers;
+    if (timers != undefined)
+      timers.textContent = `Delay: ${timerTimes.delay}\nSound: ${timerTimes.sound}\n`;
   }
 
-  let immediateTag = registerImmediate(mainLoop);
-  onDestroy(() => clearImmediate(immediateTag));
+  /**
+   * For this loop, we run it on an interval.
+   * For now, we are not tracking the delta
+   */
+  function newMainLoop() {
+    if (!emu.running) return;
+    renderTimer();
+    canvas.renderFrame();
+    for (let i = 0; i < $cyclesPerFrame; i++) {
+      emu.tick();
+      if (
+        emu.quirks.display_wait &&
+        // check if the previous instruction was a draw instruction
+        (emu.get_instruction(emu.program_counter - 2) & 0xf000) === 0xd000
+      ) {
+        // skip other instructions in frame
+        break;
+      }
+    }
+  }
 
   onMount(() => {
-    // canvas = document.getElementById("chip8-canvas");
     timers = document.getElementById("timers");
-    mainLoop();
+    intervalID = setInterval(newMainLoop, 1000 / 60);
   });
 
   const KEYMAP = {
@@ -134,7 +143,6 @@
   <DevTools on:close={() => (devTools = false)} />
 {/if}
 
-<!-- <pre id="chip8-canvas" /> -->
 <style>
   headers {
     position: fixed;
