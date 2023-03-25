@@ -1,6 +1,9 @@
 use instant::{Duration, Instant};
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct Timers {
     pub delay: usize,
     pub sound: usize,

@@ -5,18 +5,21 @@ authors.workspace = true
 edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[features]
+wasm = ["wasm-bindgen", "instant/wasm-bindgen"]
 
 [dependencies]
 thiserror = "1.0.21"
-byteorder = "1"
-serde_json = "1.0.87"
+byteorder.workspace = true
 maplit = "1.0.2"
 rand = "0.8.5"
 enum-primitive-derive = "0.2.2"
 num-traits = "0.2.15"
 log.workspace = true
 bitvec = "1.0.1"
-instant = { version = "0.1.12", features = ["wasm-bindgen"] }
+instant = { version = "0.1.12" }
+wasm-bindgen = { workspace = true, optional = true }
 
-[dependencies.getrandom]
-features = ["js"]
+# This allows us to generate random numbers on the wasm32-unknown-unknown triplet
+# If we don't provide a version, cargo will complain
+getrandom = { version = "0.2", features = ["js"] }

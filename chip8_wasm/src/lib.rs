@@ -3,7 +3,9 @@ pub mod utils;
 use std::convert::TryInto;
 use std::ops::{Deref, DerefMut};
 
-use chip8_core::Chip8;
+use chip8_core::quirks::QuirkConfig;
+use chip8_core::time::Timers;
+pub use chip8_core::Chip8;
 use wasm_bindgen::prelude::*;
 
 // When the `wee_alloc` feature is enabled, use `wee_alloc` as the global
@@ -20,10 +22,10 @@ extern "C" {
 }
 
 #[derive(Default)]
-#[wasm_bindgen]
-pub struct Chip8Wrap(Chip8);
+#[wasm_bindgen(js_name = "Chip8")]
+pub struct WasmChip8(Chip8);
 
-impl Deref for Chip8Wrap {
+impl Deref for WasmChip8 {
     type Target = Chip8;
 
     fn deref(&self) -> &Self::Target {
@@ -31,17 +33,17 @@ impl Deref for Chip8Wrap {
     }
 }
 
-impl DerefMut for Chip8Wrap {
+impl DerefMut for WasmChip8 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
-#[wasm_bindgen]
-impl Chip8Wrap {
+#[wasm_bindgen(js_class = "Chip8")]
+impl WasmChip8 {
     #[wasm_bindgen(constructor)]
-    pub fn new() -> Chip8Wrap {
-        Chip8Wrap(Chip8::new())
+    pub fn new() -> WasmChip8 {
+        WasmChip8(Chip8::new())
     }
 
     pub fn reset(&mut self) {
@@ -94,13 +96,6 @@ impl Chip8Wrap {
         self.release_key(key.try_into().expect("Already checked range"));
     }
 
-    pub fn get_timers(&self) -> Timers {
-        Timers {
-            delay_timer: self.timers.delay,
-            sound_timer: self.timers.sound,
-        }
-    }
-
     pub fn exec_instruction(&mut self, opcode: u16) {
         let instruction = opcode.into();
         log::debug!("Executing {:?}", instruction);
@@ -122,12 +117,66 @@ impl Chip8Wrap {
     pub fn get_wait_register(&self) -> String {
         format!("{:X?}", self.key_wait_register)
     }
-}
 
-#[wasm_bindgen]
-pub struct Timers {
-    pub delay_timer: usize,
-    pub sound_timer: usize,
+    pub fn change_quirk(&mut self, quirk_name: &str, new_val: bool) {
+        match quirk_name {
+            "flag_reset" => self.quirks.flag_reset = new_val,
+            "save_load_set_pointer" => self.quirks.save_load_set_pointer = new_val,
+            "display_wait" => self.quirks.display_wait = new_val,
+            "partial_wrap" => self.quirks.partial_wrap = new_val,
+            "alt_shift" => self.quirks.alt_shift = new_val,
+            "alt_rel_jump" => self.quirks.alt_rel_jump = new_val,
+            _ => log::error!("Invalid quirk name queried {}", quirk_name),
+        };
+    }
+
+    pub fn opcode_to_instruction_string(opcode: u16) -> String {
+        let instr = chip8_core::instruction::Instruction::from(opcode);
+        instr.to_string()
+    }
+
+    pub fn current_instruction(&self) -> u16 {
+        self.0.get_u16(self.pc as usize)
+    }
+
+    pub fn get_instruction(&self, index: usize) -> u16 {
+        self.get_u16(index)
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn quirks(&self) -> QuirkConfig {
+        self.quirks.clone()
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_quirks(&mut self, quirks: QuirkConfig) {
+        self.quirks = quirks
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn timers(&self) -> Timers {
+        self.timers.clone()
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn running(&self) -> bool {
+        self.running
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_running(&mut self, running: bool) {
+        self.running = running;
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn program_counter(&self) -> u16 {
+        self.pc
+    }
+
+    #[wasm_bindgen(setter)]
+    pub fn set_program_counter(&mut self, pc: u16) {
+        self.pc = pc
+    }
 }
 
 #[wasm_bindgen]

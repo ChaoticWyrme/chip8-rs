@@ -1,5 +1,5 @@
 [package]
-name = "chip8-wasm"
+name = "chip8_wasm"
 version = "0.1.0"
 authors = ["Mason Osborn <mason.osborn@gmail.com>"]
 edition = "2018"
@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook", "wee_alloc"]
 
 [dependencies]
-chip8_core = { path = "../chip8_core" }
+chip8_core = { path = "../chip8_core", features = ["wasm"] }
 wasm-bindgen.workspace = true
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
@@ -27,6 +27,6 @@ wee_alloc = { version = "0.4.5", optional = true }
 web-sys = { version = "0.3", features = ["console"] }
 console_log = { version = "1", features = ["color"] }
 log.workspace = true
-
+byteorder.workspace = true
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"

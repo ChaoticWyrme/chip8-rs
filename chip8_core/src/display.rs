@@ -1,7 +1,21 @@
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct Display {
+    #[wasm_bindgen(skip)]
     pub pixels: Vec<bool>,
     width: usize,
     height: usize,
+}
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
+impl Display {
+    #[wasm_bindgen(getter)]
+    pub fn pixels(&self) -> Vec<u8> {
+        self.pixels.iter().map(|&val| val as u8).collect()
+    }
 }
 
 impl Display {

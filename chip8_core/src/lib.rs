@@ -393,10 +393,13 @@ impl Chip8 {
         self.registers[0xF] == 1
     }
 
+    /// Gets a u16 from the two u8s at index and the following item
+    pub fn get_u16(&self, index: usize) -> u16 {
+        byteorder::BE::read_u16(&self.memory[index..=(index + 1)])
+    }
+
     fn get_instruction_at_pc(&self) -> Instruction {
-        let instruction_data: u16 = byteorder::BigEndian::read_u16(
-            &self.memory[(self.pc as usize)..((self.pc + 2) as usize)],
-        );
+        let instruction_data: u16 = self.get_u16(self.pc as usize);
         // println!("Instruction: {:#x}", instruction_data);
         instruction_data.into()
     }

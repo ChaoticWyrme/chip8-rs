@@ -36,6 +36,25 @@ pub enum MathOperation {
     UnknownOperation(OpCode),
 }
 
+impl MathOperation {
+    pub fn to_string(&self, source: Register, destination: Register) -> String {
+        match self {
+            MathOperation::Assign => format!("v{destination:X} = v{source:X}"),
+            MathOperation::BitwiseOr => format!("v{destination:X} |= v{source:X}"),
+            MathOperation::BitwiseAnd => format!("v{destination:X} &= v{source:X}"),
+            MathOperation::BitwiseXor => format!("v{destination:X} ^= v{source:X}"),
+            MathOperation::Add => format!("v{destination:X} += v{source:X}"),
+            MathOperation::Subtract => format!("v{destination:X} -= v{source:X}"),
+            MathOperation::BitshiftRight => format!("v{destination:X} = v{source:X} >>"),
+            MathOperation::BitshiftLeft => format!("v{destination:X} = v{source:X} << 1"),
+            MathOperation::Difference => {
+                format!("v{destination:X} = v{source:X} - v{destination:X}")
+            }
+            MathOperation::UnknownOperation(opcode) => format!("Unknown opcode {opcode:X}"),
+        }
+    }
+}
+
 impl From<OpCode> for MathOperation {
     /// Find the type of instruction that a given opcode represents
     fn from(opcode: OpCode) -> Self {
@@ -409,6 +428,65 @@ impl From<u16> for Instruction {
                 }
             }
             _ => unreachable!("get_nibble returned value above 0xF"),
+        }
+    }
+}
+
+impl std::fmt::Display for Instruction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Instruction::MachineCodeCall(_) => write!(f, ""),
+            Instruction::Halt => write!(f, "Halt VM"),
+            Instruction::ClearDisplay => write!(f, "Clear Display"),
+            Instruction::Return => write!(f, "Return from subroutine"),
+            Instruction::Goto { address } => write!(f, "Goto {address:X}"),
+            Instruction::Call { address } => {
+                write!(f, "Call subroutine at {address:X}")
+            }
+            Instruction::RegisterEqualToConst { register, value } => {
+                write!(f, "v{register:X} == 0x{value:X}")
+            }
+            Instruction::RegisterNotEqualToConst { register, value } => {
+                write!(f, "v{register:X} != 0x{value:X}")
+            }
+            Instruction::RegistersEqual(reg1, reg2) => write!(f, "v{reg1:X} == v{reg2:X}"),
+            Instruction::SetRegister { register, value } => write!(f, "v{register:X} = {value:X}"),
+            Instruction::AddConst { register, value } => {
+                f.write_fmt(format_args!("Add {value} to register v{register:X}"))
+            }
+            Instruction::Math {
+                source,
+                destination,
+                operation,
+            } => write!(f, "{}", operation.to_string(*source, *destination)),
+            Instruction::RegistersNotEqual(reg1, reg2) => write!(f, "v{reg1:X} != v{reg2:X}"),
+            Instruction::SetPointer(val) => write!(f, "I = {val:X}"),
+            Instruction::JumpRelative { offset } => write!(f, "Jump to v0 + {offset:X} Q!"),
+            Instruction::Random { register, mask } => {
+                write!(f, "v{register:X} = RANDOM & {mask:X}")
+            }
+            Instruction::Draw {
+                position,
+                height: _,
+            } => write!(f, "Draw sprite at {position:?}"),
+            Instruction::KeyPressed(reg) => write!(f, "Is key in v{reg:X} pressed?"),
+            Instruction::KeyNotPressed(reg) => write!(f, "Is key in v{reg:X} not pressed"),
+            Instruction::GetDelayTimer(reg) => write!(f, "v{reg:X} = delay_timer"),
+            Instruction::WaitKeyPress(reg) => write!(f, "v{reg:X} = next key pressed"),
+            Instruction::SetDelayTimer(reg) => write!(f, "delay_timer = {reg:X}"),
+            Instruction::SetSoundTimer(reg) => write!(f, "sound_timer = {reg:X}"),
+            Instruction::AddToPointer(reg) => write!(f, "I += v{reg:X}"),
+            Instruction::SetPointerToLetter(reg) => write!(f, "I = font letter in v{reg:X}"),
+            Instruction::SplitNumber(reg) => {
+                write!(f, "split v{reg:X} into decimal places stored starting at I")
+            }
+            Instruction::RegisterDump(end_reg) => {
+                write!(f, "save registers from v0 to v{end_reg:X} starting at I")
+            }
+            Instruction::RegisterLoad(end_reg) => {
+                write!(f, "load registers from v0 to v{end_reg:X} starting at I")
+            }
+            Instruction::UndefinedOperation(opcode) => write!(f, "Unknown opcode {opcode:X}"),
         }
     }
 }

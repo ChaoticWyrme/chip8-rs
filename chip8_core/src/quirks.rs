@@ -1,3 +1,8 @@
+#[cfg(feature = "wasm")]
+use wasm_bindgen::prelude::wasm_bindgen;
+
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Clone, Debug)]
 pub struct QuirkConfig {
     // Chip8 quirks
     /// Whether to reset flags register to zero on AND OR and XOR instructions
@@ -21,7 +26,13 @@ pub struct QuirkConfig {
     pub alt_rel_jump: bool,
 }
 
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
 impl QuirkConfig {
+    #[cfg_attr(feature = "wasm", wasm_bindgen(constructor))]
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     pub fn use_preset(&mut self, preset: QuirkPresets) {
         match preset {
             QuirkPresets::Chip8 => {
@@ -68,6 +79,8 @@ impl Default for QuirkConfig {
     }
 }
 
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+#[derive(Clone, Copy, Debug)]
 pub enum QuirkPresets {
     Chip8,
     SuperChip,
