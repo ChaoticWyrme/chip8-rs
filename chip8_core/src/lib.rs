@@ -126,7 +126,6 @@ impl Chip8 {
         strings.join(", ")
     }
 
-    #[allow(dead_code, unused_variables)]
     pub fn handle_instruction(
         &mut self,
         instruction: instruction::Instruction,

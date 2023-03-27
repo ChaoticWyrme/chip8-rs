@@ -1,9 +1,20 @@
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::wasm_bindgen;
 
-#[cfg_attr(feature = "wasm", wasm_bindgen)]
+// We duplicate display so that we can have wasm_bindgen(skip) on pixels
+// Without this, we need https://github.com/rust-lang/rust/issues/82679 (cfg_eval macro) to be stabilized
+
+#[cfg(feature = "wasm")]
+#[wasm_bindgen]
 pub struct Display {
     #[wasm_bindgen(skip)]
+    pub pixels: Vec<bool>,
+    width: usize,
+    height: usize,
+}
+
+#[cfg(not(feature = "wasm"))]
+pub struct Display {
     pub pixels: Vec<bool>,
     width: usize,
     height: usize,
