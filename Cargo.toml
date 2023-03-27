@@ -11,6 +11,10 @@ members = ["chip8_core", "chip8_wasm"]
 version = "0.1.0"
 authors = ["Mason Osborn <mason.osborn@gmail.com>"]
 edition = "2021"
+license-file = "LICENSE"
+homepage = "https://chaoticwyrme.github.com/chip8-rs/"
+repository = "https://github.com/ChaoticWyrme/chip8-rs"
+description = "A chip-8 emulator built in rust, with a svelte frontend"
 
 [workspace.dependencies]
 log = "0.4.17"

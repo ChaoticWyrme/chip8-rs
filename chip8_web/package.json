@@ -3,6 +3,10 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "license": "MIT",
+  "author": {
+    "name": "Mason Osborn"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
