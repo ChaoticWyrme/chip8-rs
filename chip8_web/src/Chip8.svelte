@@ -3,7 +3,6 @@
   import { getContext, onMount } from "svelte";
   import CanvasDisplay from "./lib/CanvasDisplay.svelte";
   import { cyclesPerFrame } from "./stores";
-  import roms from "./util/roms";
   import DevTools from "./lib/DevTools.svelte";
   import { Debouncer } from "./util/functions";
 
@@ -98,41 +97,12 @@
     emu.key_up(emuKey);
   }
 
-  let selectedUrl;
-
-  async function switchRoms() {
-    console.log(selectedUrl);
-    let response = await fetch(selectedUrl, {});
-    if (!response.ok) {
-      let message = `Error fetching url '${selectedUrl}': \n${response.statusText}`;
-      console.error(message);
-      alert(message);
-      return;
-    }
-    let data = new Uint8Array(await response.arrayBuffer());
-    emu.reset();
-    emu.load_rom(data);
-  }
-
   let devTools = false;
 </script>
 
 <svelte:window on:keydown={handleKeydown} on:keyup={handleKeyup} />
 
 <headers>
-  <div id="selectRom">
-    Select ROM:
-    <select bind:value={selectedUrl} on:change={() => switchRoms()}>
-      {#each roms as { title, filename, url }}
-        <option
-          value={typeof filename === "string" ? "./roms/" + filename : url}
-        >
-          {title}
-        </option>
-      {/each}
-    </select>
-  </div>
-
   <h3>Chip8-rs</h3>
   <div id="timers" />
 </headers>
@@ -155,10 +125,6 @@
     flex-wrap: nowrap;
     border-bottom: black 1px solid;
     padding: 0.4em 0px;
-  }
-
-  headers > #selectRom {
-    float: left;
   }
 
   headers h3 {
