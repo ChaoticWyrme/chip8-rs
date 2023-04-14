@@ -15,14 +15,20 @@
     "wasm": "wasm-pack build ../chip8_wasm --target web"
   },
   "devDependencies": {
+    "@iconify-json/mdi": "^1.1.50",
     "@sveltejs/vite-plugin-svelte": "^2.0.2",
     "@tsconfig/svelte": "^3.0.0",
     "svelte": "^3.55.1",
     "svelte-check": "^2.10.3",
     "tslib": "^2.5.0",
     "typescript": "^4.9.3",
+    "unplugin-icons": "^0.16.1",
     "vite": "^4.1.0",
     "vite-plugin-fonts": "^0.7.0",
     "vite-plugin-wasm-pack": "^0.1.12"
+  },
+  "dependencies": {
+    "@svelteuidev/composables": "^0.10.0",
+    "@svelteuidev/core": "^0.10.0"
   }
 }

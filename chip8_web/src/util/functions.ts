@@ -1,4 +1,5 @@
 import { formatHex } from "./format";
+import { type QuirkConfig, QuirkPresets, } from 'chip8_wasm';
 
 export function generateHexRow(memoryView: DataView, offset: number): string {
     const clampedOffset = Math.max(
@@ -93,4 +94,36 @@ export class Debouncer {
         return false;
     }
 
+}
+
+export function matchPreset(config: QuirkConfig): QuirkPresets | undefined {
+    if (
+        config.flag_reset &&
+        config.save_load_set_pointer &&
+        config.display_wait &&
+        !config.partial_wrap &&
+        !config.alt_shift &&
+        !config.alt_rel_jump
+    ) return QuirkPresets.Chip8;
+
+    if (
+        !config.flag_reset &&
+        !config.save_load_set_pointer &&
+        !config.display_wait &&
+        !config.partial_wrap &&
+        config.alt_shift &&
+        !config.alt_rel_jump
+    ) return QuirkPresets.SuperChip;
+
+    if (
+        !config.flag_reset &&
+        config.save_load_set_pointer &&
+        !config.display_wait &&
+        !config.partial_wrap &&
+        !config.alt_shift &&
+        !config.alt_rel_jump
+    ) return QuirkPresets.XoChip;
+
+
+    return undefined;
 }

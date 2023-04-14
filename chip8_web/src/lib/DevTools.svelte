@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from "svelte";
-  import HexView from "./HexView.svelte";
+  import HexView from "./DevWidgets/HexView.svelte";
+  import RegisterDisplay from "./DevWidgets/RegisterDisplay.svelte";
 
   // if this is true, float to the left, to the right otherwise
   let left = false;
@@ -36,6 +37,7 @@
       </div>
     </div>
     <div class="devtools-body" class:minimized>
+      <RegisterDisplay />
       <HexView />
     </div>
   </div>

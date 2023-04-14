@@ -1,8 +1,8 @@
 <script lang="ts">
   import { getContext, onDestroy, onMount } from "svelte";
   import type { Chip8 } from "chip8_wasm";
-  import { formatHex } from "../util/format";
-  import { generateHexRow } from "../util/functions";
+  import { formatHex } from "../../util/format";
+  import { generateHexRow } from "../../util/functions";
 
   const ROM_SIZE = 0x1000;
   const MAX_ROW_COUNT = 8;
