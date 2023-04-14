@@ -2,7 +2,7 @@
 use wasm_bindgen::prelude::wasm_bindgen;
 
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QuirkConfig {
     // Chip8 quirks
     /// Whether to reset flags register to zero on AND OR and XOR instructions

@@ -216,6 +216,7 @@ impl Chip8 {
                     self.registers[position.1 as usize],
                     height,
                     &self.memory[mem_start..mem_end],
+                    self.quirks.partial_wrap,
                 );
             }
             Instruction::KeyPressed(register) => {
@@ -369,9 +370,9 @@ impl Chip8 {
             BitshiftLeft => {
                 // calculate result depending on quirks
                 let (carry, result) = if self.quirks.alt_shift {
-                    (dest_val & 0b0000_0001 != 0, dest_val << 1)
+                    (dest_val & 0b1000_0000 != 0, dest_val << 1)
                 } else {
-                    (source_val & 0b0000_0001 != 0, source_val << 1)
+                    (source_val & 0b1000_0000 != 0, source_val << 1)
                 };
                 self.registers[destination as usize] = result;
                 self.set_carry(carry);

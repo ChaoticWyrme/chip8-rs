@@ -67,27 +67,46 @@ impl Display {
 
     /// Draws a sprite from memory to the screen
     /// # Arguments
-    /// * `height` - The height of the sprite 1-16
+    /// * `pos_x` - The position of the sprite on the x-axis. Wraps if greater than self.width
+    /// * `pos_y` - The position of the sprite on the y-axis. Wraps if greater than self.height
+    /// * `sprite_height` - The height of the sprite 1-16. Certain modes can have 0 mean a 16x16 sprite, otherwise width is 8.
     /// * `memory` - A slice of the memory containing the sprite data, should be
+    /// * `wrap_sprite` - Whether the sprite should wrap partially
     /// # Returns
     /// Returns true if a bit is flipped from on to off, false otherwise.
-    pub fn draw_sprite(&mut self, pos_x: u8, pos_y: u8, sprite_height: u8, memory: &[u8]) -> bool {
+    pub fn draw_sprite(
+        &mut self,
+        pos_x: u8,
+        pos_y: u8,
+        sprite_height: u8,
+        memory: &[u8],
+        wrap_sprite: bool,
+    ) -> bool {
         let sprite_height = sprite_height as usize;
         let sprite_width: usize = 8;
-        let pos_x = pos_x as usize;
-        let pos_y = pos_y as usize;
+        let pos_x = pos_x as usize % self.width;
+        let pos_y = pos_y as usize % self.height;
         let mut collide_check = false;
 
-        for (row_index, y) in (pos_y..(pos_y + sprite_height)).enumerate() {
+        for (row_index, mut y) in (pos_y..(pos_y + sprite_height)).enumerate() {
             let row: u8 = memory[row_index];
             let mut mask: u8 = 0b10000000;
-            for x in pos_x..(pos_x + sprite_width) {
+            for mut x in pos_x..(pos_x + sprite_width) {
                 if (row & mask) != 0 {
                     // modulo coordinates, so that it wraps around the screen
-                    let result = self.flip_pixel(x % self.width, y % self.height);
-                    // if a bit is flipped from on to off, this function should return true
-                    if !result {
-                        collide_check = true;
+                    if wrap_sprite {
+                        x %= self.width;
+                        y %= self.height;
+                    }
+
+                    if x < self.width && y < self.height {
+                        let result = self.flip_pixel(x, y);
+                        // if a bit is flipped from on to off, this function should return true
+                        if !result {
+                            collide_check = true;
+                        }
+                    } else {
+                        break;
                     }
                 }
                 mask >>= 1;
